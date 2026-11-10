@@ -1,0 +1,984 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>LV-MV Panel Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: engineering workbench. 3D viewport on the left, spec sheet + bill of materials on the right; stacks on phones */
+:root{
+  --bg:#e8ebee; --surface:#fbfcfc; --surface-2:#f0f2f4; --fg:#17202b; --muted:#5b6674; --line:#d2d8de;
+  --accent:#b5530a; --accent-ink:#ffffff; --accent-soft:#fbeedd;
+  --stage-top:#f5f7f8; --stage-bot:#d7dce2;
+  --ph-r:#d0312d; --ph-y:#e1a400; --ph-b:#2160c4; --mk:#2f7a45; --mk-soft:#e2f2e6; --by:#2f5ea8; --by-soft:#e3ebf8;
+  --f-disp:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --surface:#171d24; --surface-2:#1e252e; --fg:#e6eaee; --muted:#9aa5b1; --line:#2b343e;
+  --accent:#f0a04b; --accent-ink:#1a1206; --accent-soft:#2d2216; --stage-top:#1c232b; --stage-bot:#0c1015; --mk:#7fd39a; --mk-soft:#1d3324; --by:#9dbcf0; --by-soft:#1e2a3f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --surface:#171d24; --surface-2:#1e252e; --fg:#e6eaee; --muted:#9aa5b1; --line:#2b343e;
+  --accent:#f0a04b; --accent-ink:#1a1206; --accent-soft:#2d2216; --stage-top:#1c232b; --stage-bot:#0c1015; --mk:#7fd39a; --mk-soft:#1d3324; --by:#9dbcf0; --by-soft:#1e2a3f; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+button{font:inherit;color:inherit}
+.app{height:100%;display:flex;flex-direction:column;gap:12px;max-width:1640px;margin:0 auto}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.phases{display:flex;flex-direction:column;gap:3px}
+.phases i{display:block;width:26px;height:5px;border-radius:2px}
+.phases i:nth-child(1){background:var(--ph-r)}.phases i:nth-child(2){background:var(--ph-y)}.phases i:nth-child(3){background:var(--ph-b)}
+h1{font-family:var(--f-disp);font-weight:700;font-size:22px;letter-spacing:.01em;margin:0;line-height:1.1;text-wrap:balance}
+.sub{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:500;font-size:13px;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.navs{display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:0;max-width:100%}
+.seg.site button{font-weight:600}
+.seg.site button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg.prod{justify-content:flex-end;max-width:900px}
+.seg.prod button{padding:5px 9px;font-size:12px}
+@media (max-width:880px){.navs{align-items:stretch}.seg.prod{justify-content:flex-start}}
+.seg button:focus-visible,.btn:focus-visible,.chip:focus-visible,.row:focus-visible,.balloon:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.work{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:12px}
+.stage{position:relative;border-radius:10px;overflow:hidden;background:linear-gradient(var(--stage-top),var(--stage-bot));border:1px solid var(--line);min-height:0;touch-action:none}
+.stage canvas{display:block;width:100%;height:100%;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.hud{position:absolute;left:12px;top:12px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:calc(100% - 24px)}
+.hud b{color:var(--fg);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+#balloons{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.balloon{position:absolute;left:0;top:0;min-width:22px;height:22px;padding:0 4px;border-radius:11px;background:var(--surface);color:var(--fg);
+  border:1.5px solid var(--fg);font:600 10.5px/1 var(--f-mono);display:grid;place-items:center;cursor:pointer;pointer-events:auto;will-change:transform;opacity:.92}
+.balloon:hover{border-color:var(--accent);color:var(--accent);opacity:1}
+.balloon.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);opacity:1;z-index:2}
+.tip{position:absolute;left:0;top:0;background:var(--fg);color:var(--bg);font-size:12px;font-weight:500;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:3}
+.controls{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px;box-shadow:0 4px 18px rgba(0,0,0,.08)}
+.ex{display:flex;align-items:center;gap:8px;flex:1 1 220px;min-width:0}
+.ex label{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ex input{flex:1;min-width:80px;accent-color:var(--accent)}
+.ex output{font-family:var(--f-mono);font-size:12px;width:38px;text-align:right;font-variant-numeric:tabular-nums}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.btn{border:1px solid var(--line);background:var(--surface-2);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip{border:1px solid var(--line);background:transparent;padding:5px 9px;border-radius:999px;cursor:pointer;font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor}
+.chip[aria-pressed="true"]{color:var(--fg);border-color:var(--fg)}
+.chip[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent)}
+.side{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.eyebrow .no{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:1px 7px;font-weight:600}
+.card h2{font-family:var(--f-disp);font-size:21px;font-weight:600;margin:6px 0 8px;line-height:1.15;text-wrap:balance}
+.card p{margin:0 0 12px;max-width:65ch}
+.spec{display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);border-top:1px solid var(--line);margin:0}
+.spec dt,.spec dd{margin:0;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;min-width:0}
+.spec dt{color:var(--muted);padding-right:10px}
+.spec dd{font-family:var(--f-mono);font-size:12.5px;overflow-wrap:anywhere}
+.card .acts{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.note{font-size:12px;color:var(--muted);margin:10px 0 0}
+.bom h3{font-family:var(--f-disp);font-size:16px;font-weight:600;margin:0 0 4px;display:flex;justify-content:space-between;align-items:baseline}
+.bom h3 span{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);font-weight:400}
+.grp{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.row{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:6px 6px;border-radius:6px;cursor:pointer;font-size:13.5px}
+.row:hover{background:var(--surface-2)}
+.row.sel{background:var(--accent-soft)}
+.row .n{font-family:var(--f-mono);font-size:11px;font-weight:600;border:1.5px solid var(--fg);border-radius:999px;height:20px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.row.sel .n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tag{display:inline-block;font:600 10px/1 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;padding:3px 6px;border-radius:4px;white-space:nowrap;vertical-align:middle}
+.tM{background:var(--mk-soft);color:var(--mk)}.tB{background:var(--by-soft);color:var(--by)}.tMB{background:var(--surface-2);color:var(--fg);border:1px solid var(--line)}.tC{background:var(--surface-2);color:var(--muted)}
+.row{grid-template-columns:30px minmax(0,1fr) auto!important}
+.bl-h{font-family:var(--f-mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.bl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.bl li{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.bl code{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.mklegend{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px}
+.mklegend span{display:flex;align-items:center;gap:7px}.mklegend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.mklegend .mk{background:#3f9a5a}.mklegend .by{background:#4f7fc4}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:12px;height:12px;border-radius:2px;display:inline-block}
+@media (max-width:880px){
+  html,body{height:auto}
+  .app{height:auto}
+  .work{grid-template-columns:minmax(0,1fr)}
+  .stage{height:68vh;min-height:420px}
+  .side{overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <div class="phases" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div>
+        <h1>LV-MV Panel Explorer</h1>
+        <p class="sub">Box-3 &amp; Box-4 and Jinnaram products in exploded 3D, keyed to the assembly-wise BOMs</p>
+      </div>
+    </div>
+    <div class="navs">
+      <div class="seg site" id="siteSeg" aria-label="Production facility">
+        <button data-site="b34" aria-selected="true">Box-3 &amp; Box-4</button>
+        <button data-site="jin" aria-selected="false">Jinnaram</button>
+      </div>
+      <div class="seg prod" id="prodSeg" role="tablist" aria-label="Product"></div>
+    </div>
+  </header>
+
+  <main class="work">
+    <section class="stage" id="stage" aria-label="3D view. Drag to rotate, scroll or pinch to zoom, right-drag to pan.">
+      <canvas id="cv"></canvas>
+      <div id="balloons"></div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="mklegend" id="mkLegend" hidden><span><i class="mk"></i>Make · sheet metal (in-house)</span><span><i class="by"></i>Buy · bought-out</span></div>
+      <div class="hud"><b id="hudTitle"></b><span id="hudRating"></span><span id="hudSize"></span><span>Drag to rotate · scroll to zoom · right-drag to pan</span></div>
+      <div class="controls">
+        <div class="ex">
+          <label for="explode">Explode</label>
+          <input type="range" id="explode" min="0" max="100" value="65">
+          <output id="exOut">65%</output>
+        </div>
+        <div class="btns">
+          <button class="btn" id="bAssemble">Assemble</button>
+          <button class="btn primary" id="bExplode">Explode</button>
+          <button class="btn" id="bReset">Reset view</button>
+        </div>
+        <div class="btns">
+          <button class="chip" id="cXray" aria-pressed="false">See-through enclosure</button>
+          <button class="chip" id="cBalloons" aria-pressed="true">Item numbers</button>
+          <button class="chip" id="cMake" aria-pressed="false">Colour by Make / Buy</button>
+          <button class="chip" id="cRotate" aria-pressed="false">Auto-rotate</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card" id="detail"></div>
+      <div class="card bom">
+        <h3>Parts by BOM assembly <span id="bomCount"></span></h3>
+        <div id="bom"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+/* ---------- materials ---------- */
+const PAL={
+ steel:[0xd5d8d3,.15,.62], steelDark:[0x6c737a,.4,.5], galv:[0xaab1b6,.7,.38], alu:[0xc3c8cc,.6,.35],
+ copper:[0xc8783e,.85,.3], tin:[0xd6d6cc,.8,.3], brass:[0xb38b36,.8,.35],
+ epoxy:[0x9a6a36,.05,.45], resin:[0x3c4146,.05,.55], pole:[0x2e3236,.05,.5], insul:[0x8c3b22,.05,.5], dmc:[0x962d20,.05,.6],
+ black:[0x1f2225,.1,.55], relay:[0x39424d,.2,.5], lcd:[0x3d8d8a,.1,.2,0x14403e], white:[0xecece7,.05,.6], tb:[0x8b9299,.05,.6],
+ duct:[0x9da3a8,.05,.7], glass:[0x6f8fa5,.2,.1,0,.4], danger:[0xc8322b,.05,.6], cable:[0x17181a,.05,.7], hs:[0xa1261d,.05,.6],
+ polymer:[0x666b70,.05,.7], mccb:[0x2a2d31,.1,.55], mpcb:[0x8a9096,.1,.55], contactor:[0xdcddd9,.05,.6], ctrlTx:[0x47525d,.4,.5],
+ fascia:[0x2f343a,.15,.5], green:[0x2f9e44,.1,.4], red:[0xd62828,.1,.4], amber:[0xf08c00,.1,.4], yellow:[0xe9b10a,.1,.45],
+ R:[0xc62828,.1,.45], Y:[0xe0a800,.1,.45], B:[0x1e5bb8,.1,.45], N:[0x222428,.1,.5],
+ ss:[0xc8ced3,.55,.3], blue:[0x2b6f9e,.25,.5], canopy:[0xcfd5da,.2,.6]
+};
+function mat(k){const p=PAL[k];const m=new THREE.MeshStandardMaterial({color:p[0],metalness:p[1],roughness:p[2]});
+ if(p[3])m.emissive.setHex(p[3]); if(p[4]!==undefined){m.opacity=p[4];m.transparent=true;m.depthWrite=false;}
+ m.userData.baseEm=m.emissive.getHex(); m.userData.k=k; m.userData.baseCol=p[0]; return m;}
+function edges(m){const l=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:0x29313a,transparent:true,opacity:.32}));l.raycast=function(){};m.add(l);}
+function box(g,w,h,d,k,x,y,z,o){o=o||{};const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(k));m.position.set(x,y,z);
+ if(o.rx)m.rotation.x=o.rx;if(o.ry)m.rotation.y=o.ry;if(o.rz)m.rotation.z=o.rz;if(o.e)edges(m);g.add(m);return m;}
+function cyl(g,r,h,k,x,y,z,ax,o){o=o||{};const m=new THREE.Mesh(new THREE.CylinderGeometry(o.r2!=null?o.r2:r,r,h,o.seg||22),mat(k));
+ if(ax==='x')m.rotation.z=Math.PI/2;else if(ax==='z')m.rotation.x=Math.PI/2;m.position.set(x,y,z);g.add(m);return m;}
+function doorCut(g,w,h,t,k,cx,cy,z,cw,ch,ox,oy){
+ const L=cx-w/2,Rr=cx+w/2,Bt=cy-h/2,Tp=cy+h/2,cl=cx+ox-cw/2,cr=cx+ox+cw/2,cb=cy+oy-ch/2,ct=cy+oy+ch/2;
+ box(g,w,Tp-ct,t,k,cx,(Tp+ct)/2,z,{e:1});box(g,w,cb-Bt,t,k,cx,(cb+Bt)/2,z,{e:1});
+ box(g,cl-L,ch,t,k,(L+cl)/2,cy+oy,z,{e:1});box(g,Rr-cr,ch,t,k,(Rr+cr)/2,cy+oy,z,{e:1});}
+
+/* ---------- model registry ---------- */
+const models={};
+function newModel(key,o){const m=Object.assign({key,root:new THREE.Group(),parts:[]},o);models[key]=m;return m;}
+function addPart(m,def,build){const g=new THREE.Group();build(g);m.root.add(g);g.updateMatrixWorld(true);
+ const bb=new THREE.Box3().setFromObject(g);
+ const p=Object.assign({},def,{no:m.parts.length+1,obj:g,center:bb.getCenter(new THREE.Vector3()),exv:new THREE.Vector3().fromArray(def.ex),mats:[]});
+ g.traverse(o=>{if(o.isMesh){o.userData.part=p;p.mats.push({m:o.material,base:o.material.opacity,line:false});}
+  else if(o.isLineSegments){p.mats.push({m:o.material,base:o.material.opacity,line:true});}});
+ const cs=new Set((def.bom||[]).map(b=>b[2]==='C'?'B':b[2]));p.cat=cs.size>1?'MB':(cs.has('M')?'M':'B');
+ m.parts.push(p);return p;}
+
+/* ================= MV: 33 kV (36 kV class) metal-clad VCB panel ================= */
+(function(){
+const m=newModel('mv',{title:'33 kV metal-clad VCB switchboard panel',
+ rating:'36 kV · 2500 A · 31.5 kA/3 s · LSC2B-PM · IAC AFLR · IEC 62271-200',
+ size:'≈ 1200 W × 2800 D × 2600 H mm (assumed)',
+ overview:'One cubicle of an air-insulated, SF6-free 33 kV switchboard for a data-centre campus. The model shows an incomer arrangement with a 2500 A withdrawable VCB, line VTs and an arc gas duct; the CBCT and surge arresters shown apply to transformer-feeder panels. Item codes match the Excel BOM (MV-01 … MV-11).',
+ scale:[1.5,1.13,1.75],target:new THREE.Vector3(0,1.35,0.6),dir:new THREE.Vector3(.62,.34,.71),dist:12.5});
+const P=(d,f)=>addPart(m,d,f);const XP=[-0.22,0,0.22];const PH=['R','Y','B'];const ZB=[-0.3,-0.45,-0.6];
+const A1='MV-01 · Base frame & structure',A2='MV-02 · Enclosure covers',A3='MV-03 · Doors & door hardware',A4='MV-04 · Partitions, shutters & rails',
+ A5='MV-05 · Vacuum circuit breaker & racking',A6='MV-06 · Main busbar system',A7='MV-07 · Instrument transformers & sensors',A8='MV-08 · Earthing, cable termination & earth bus',A9='MV-09 · LV / relay compartment';
+
+P({name:'Base frame',area:A1,ex:[0,-0.6,0],
+ fn:'Folded channel frame that sits over the cable trench and carries the whole cubicle, plus the uprights, members and gussets that form the skeleton.',
+ spec:[['Material','CRCA 3.0 mm (base), 2.5 mm (frame)'],['Finish','Galvanised or powder coated'],['Fixing','M12 anchor bolts to floor insert']],
+ bom:[['MV-01-01','Base frame - front/rear members','M'],['MV-01-02','Base frame - side members','M'],['MV-01-03','Vertical frame uprights','M'],['MV-01-04','Horizontal frame members','M'],['MV-01-05','Corner gussets / stiffeners','M'],['MV-01-06','Lifting brackets','M'],['MV-01-07','Floor fixing clamps','M']]},
+ g=>{box(g,.8,.1,.08,'galv',0,.05,.76,{e:1});box(g,.8,.1,.08,'galv',0,.05,-.76,{e:1});box(g,.08,.1,1.44,'galv',-.36,.05,0,{e:1});box(g,.08,.1,1.44,'galv',.36,.05,0,{e:1});});
+P({name:'Side sheet, LH',area:A2,enclosure:true,ex:[-1.0,0,0],
+ fn:'Outer side cover. Between cubicles it carries the wall-bushing cutout for the main busbars; at the end of the lineup it becomes the end cover.',
+ spec:[['Material','CRCA 2.0 mm'],['Paint','RAL 7035 powder, 60–80 µm'],['Note','Split in 2 pcs if over 2500 mm']],
+ bom:[['MV-02-01','Side sheet (inter-panel / end)','M'],['MV-11-01','End covers (lineup ends)','M']]},
+ g=>{box(g,.02,2.2,1.6,'steel',-.39,1.2,0,{e:1});});
+P({name:'Side sheet, RH',area:A2,enclosure:true,ex:[1.0,0,0],
+ fn:'Right-hand side cover, identical to the LH sheet.',
+ spec:[['Material','CRCA 2.0 mm'],['Paint','RAL 7035']],
+ bom:[['MV-02-01','Side sheet (inter-panel / end)','M']]},
+ g=>{box(g,.02,2.2,1.6,'steel',.39,1.2,0,{e:1});});
+P({name:'Rear covers',area:A2,enclosure:true,ex:[0,0,-1.25],
+ fn:'Bolted covers over the busbar compartment (upper) and cable compartment (lower). The lower cover is interlocked with the earthing switch.',
+ spec:[['Material','CRCA 2.0 mm'],['Access','Tool-only, padlockable'],['Marking','Danger plate, 33 kV']],
+ bom:[['MV-02-02','Rear cover - busbar compartment','M'],['MV-02-03','Rear cover - cable compartment','M'],['MV-10-09','Danger plates & rating plate','B']]},
+ g=>{box(g,.76,1.15,.02,'steel',0,1.72,-.79,{e:1});box(g,.76,1.04,.02,'steel',0,.62,-.79,{e:1});box(g,.18,.12,.004,'danger',0,1.75,-.802);});
+P({name:'Roof & pressure-relief flaps',area:A2,enclosure:true,ex:[0,0.95,0],
+ fn:'Top cover with one pressure-relief flap per HV compartment. During an internal arc the flaps open and vent gas up into the arc duct, away from the operator.',
+ spec:[['Material','CRCA 2.0 mm; flaps CRCA or Al 2.0 mm'],['Flaps','Breaker, busbar, cable compartments'],['Design','Per IAC type test']],
+ bom:[['MV-02-04','Roof sheet','M'],['MV-02-05','Pressure-relief flaps','M']]},
+ g=>{box(g,.8,.03,1.6,'steel',0,2.315,0,{e:1});[.55,.05,-.45].forEach(z=>box(g,.6,.012,.36,'steelDark',0,2.35,z,{e:1,rx:-.14}));});
+P({name:'Arc gas exhaust duct',area:A2,enclosure:true,ex:[0,1.55,0],
+ fn:'Plenum running along the top of the lineup that collects arc gases from the relief flaps and discharges them outside the switchroom. Needed for an IAC AFLR rating.',
+ spec:[['Material','CRCA / GI 2.0 mm'],['Joints','Bolted between panels'],['End piece','Outlet flap per lineup']],
+ bom:[['MV-02-06','Arc gas exhaust duct section','M'],['MV-11-07','Arc duct end outlet / flap','M']]},
+ g=>{box(g,.8,.25,.7,'galv',0,2.48,-.3,{e:1});box(g,.8,.012,.25,'galv',0,2.37,.2,{e:1,rx:.5});});
+P({name:'Breaker compartment door',area:A3,enclosure:true,ex:[0,0,2.2],
+ fn:'Arc-resistant front door with viewing window and racking port. The breaker racks between Service and Test with this door closed.',
+ spec:[['Material','CRCA 2.5 mm + stiffeners'],['Window','Toughened glass / polycarbonate, arc-tested'],['Hardware','3 hinges, 3-point lock, gasket, earth braid']],
+ bom:[['MV-03-01','Breaker compartment door','M'],['MV-03-02','Door stiffeners','M'],['MV-03-03','Cable compartment front cover','M'],['MV-03-05','Viewing window frame','M'],['MV-03-06','Viewing window glazing','B'],['MV-03-07','Heavy-duty hinges','B'],['MV-03-08','Door handle with lock','B'],['MV-03-09','Door gasket','B'],['MV-03-10','Door earthing braid','B'],['MV-03-11','Door stay / stopper','B'],['MV-09-22','Mimic diagram strips','B']]},
+ g=>{box(g,.76,1.66,.025,'steel',0,.95,.80,{e:1});box(g,.26,.16,.006,'glass',0,1.18,.815);box(g,.3,.2,.004,'steelDark',0,1.18,.8135);box(g,.025,.18,.03,'black',.32,1.05,.83);
+  cyl(g,.02,.012,'black',0,.72,.816,'z');box(g,.12,.08,.003,'danger',0,1.5,.815);
+  [1.6,1.0,.4].forEach(y=>box(g,.03,.08,.03,'black',-.385,y,.81));});
+P({name:'LV compartment door',area:A3,enclosure:true,ex:[0,0,2.2],
+ fn:'Hinged door of the instrument compartment carrying the relay, meter and control switches. It can be opened with the HV side live.',
+ spec:[['Material','CRCA 2.0 mm'],['Gasket','Neoprene / PU'],['Wiring','Flexible loom across hinge']],
+ bom:[['MV-03-04','LV compartment door','M'],['MV-02-07','LV compartment shell','M'],['MV-03-07','Hinges','B'],['MV-03-08','Door handle with lock','B']]},
+ g=>{box(g,.76,.48,.025,'steel',0,2.05,.80,{e:1});box(g,.02,.08,.03,'black',.34,2.05,.83);});
+P({name:'Internal segregation partitions',area:A4,enclosure:true,ex:[0.6,0,0],
+ fn:'Earthed metal partitions separating LV, breaker, busbar and cable compartments, so work or a fault in one compartment does not expose the others.',
+ spec:[['Material','GI / Aluzinc 2.0 mm'],['Service continuity','LSC2B'],['Partition class','PM']],
+ bom:[['MV-04-01','Breaker compartment rear partition','M'],['MV-04-02','Busbar / cable separating partition','M'],['MV-04-03','LV compartment floor','M'],['MV-04-04','Busbar compartment side barrier','M']]},
+ g=>{box(g,.76,.015,.75,'galv',0,1.78,.425,{e:1});box(g,.76,1.68,.015,'galv',0,.94,.03,{e:1});box(g,.76,.015,.81,'galv',0,1.12,-.375,{e:1});box(g,.76,.5,.015,'galv',0,2.045,.35,{e:1});});
+P({name:'Metallic safety shutters',area:A4,ex:[0,0,0.6],
+ fn:'Close automatically over the spout openings when the truck is racked out. Shown open, as in the Service position.',
+ spec:[['Plates','GI 2.0 mm, in-house or OEM kit'],['Bus side','Marked BUSBAR, red'],['Locking','Padlockable closed']],
+ bom:[['MV-04-05','Shutter plates (bus / cable side)','M'],['MV-04-06','Shutter drive linkage & guide rods','B']]},
+ g=>{box(g,.66,.25,.008,'galv',0,1.52,.065,{e:1});box(g,.66,.25,.008,'galv',0,.72,.065,{e:1});box(g,.3,.04,.002,'danger',0,1.52,.07);
+  cyl(g,.006,1.05,'black',-.35,1.12,.065);cyl(g,.006,1.05,'black',.35,1.12,.065);});
+P({name:'Guide rails & racking interlock',area:A4,ex:[0,-0.3,0.5],
+ fn:'Floor plate and rails that guide the truck, with the racking screw and mechanical interlocks from the VCB maker.',
+ spec:[['Rails / floor','CRCA 3.0 mm'],['Racking kit','VCB OEM'],['Interlocks','Per IEC 62271-200']],
+ bom:[['MV-04-07','Breaker compartment floor plate','M'],['MV-04-08','Truck guide rails','M'],['MV-05-03','Racking mechanism & interlock kit','B'],['MV-05-04','Truck position limit switches','B']]},
+ g=>{box(g,.7,.012,.7,'steel',0,.575,.42,{e:1});box(g,.04,.03,.7,'galv',-.3,.595,.42);box(g,.04,.03,.7,'galv',.3,.595,.42);cyl(g,.012,.6,'black',0,.62,.4,'z');box(g,.12,.06,.02,'black',0,.62,.74);});
+P({name:'Gland plate',area:A4,ex:[0,-0.85,-0.35],
+ fn:'Non-magnetic aluminium bottom plate where the single-core 33 kV cables enter, so it does not heat up from eddy currents.',
+ spec:[['Material','Aluminium 3.0 mm'],['Supply','Undrilled, drilled at site'],['Glands','By cable contractor']],
+ bom:[['MV-04-11','Gland plate (non-magnetic)','M'],['MV-04-09','Cable compartment support channels','M']]},
+ g=>{box(g,.76,.012,.78,'alu',0,.1,-.39,{e:1});XP.forEach(x=>cyl(g,.045,.04,'brass',x,.09,-.62));});
+
+P({name:'VCB truck & spring mechanism',area:A5,ex:[0,0,1.25],
+ fn:'Withdrawable 36 kV vacuum breaker on its truck. A motor-charged spring stores the energy to close and open; the truck racks between Service, Test and Isolated.',
+ spec:[['Rating','36 kV, 2500 A (I/C, B/C) / 1250 A (O/G)'],['Breaking','31.5 kA, 3 s'],['Mechanism','Motor spring, 110 V DC'],['Makes','ABB, Siemens, Schneider, LK']],
+ bom:[['MV-05-01','VCB 36 kV, 2500 A (I/C, B/C)','B'],['MV-05-02','VCB 36 kV, 1250 A (O/G)','B'],['MV-05-06','Secondary plug & socket','B'],['MV-05-07','Truck earthing sliding contact','B']]},
+ g=>{box(g,.6,.08,.5,'steelDark',0,.69,.42,{e:1});[[-.28,.25],[.28,.25],[-.28,.6],[.28,.6]].forEach(a=>cyl(g,.04,.03,'black',a[0],.65,a[1],'x'));
+  box(g,.6,.5,.14,'fascia',0,.98,.66,{e:1});box(g,.5,.4,.006,'relay',0,1.0,.733);
+  cyl(g,.018,.01,'green',-.1,1.1,.738,'z');cyl(g,.018,.01,'red',0,1.1,.738,'z');
+  box(g,.05,.03,.004,'yellow',.12,1.1,.737);box(g,.05,.03,.004,'white',.12,1.04,.737);box(g,.045,.015,.004,'black',.12,.98,.737);
+  cyl(g,.015,.01,'black',-.15,.9,.738,'z');box(g,.3,.02,.02,'black',0,.79,.76);});
+P({name:'Vacuum interrupter poles',area:A5,ex:[0,0.35,1.25],
+ fn:'One epoxy-embedded vacuum interrupter per phase, part of the VCB. Tulip contacts plug onto the fixed contacts in the spouts.',
+ spec:[['Rated voltage','36 kV'],['Insulation','70 kV 1 min / 170 kVp'],['Endurance','Class M2 / E2']],
+ bom:[['MV-05-01','Part of VCB','B']]},
+ g=>{XP.forEach(x=>{cyl(g,.055,.5,'pole',x,1.12,.42);cyl(g,.045,.02,'galv',x,1.38,.42);cyl(g,.012,.14,'pole',x,.8,.42);
+  [1.3,.95].forEach(y=>{cyl(g,.022,.3,'copper',x,y,.27,'z');cyl(g,.035,.06,'tin',x,y,.10,'z');});});});
+P({name:'Epoxy spouts & fixed contacts',area:A5,ex:[0,0,0.3],
+ fn:'Cast-epoxy bushings holding the fixed contacts: three on the bus side, three on the cable side. Usually part of the VCB maker\'s panel kit.',
+ spec:[['Rating','36 kV, to suit VCB current'],['Contacts','Silver-plated Cu'],['Qty','6 per panel']],
+ bom:[['MV-05-02','Epoxy spouts with fixed contacts','B']]},
+ g=>{XP.forEach(x=>[1.3,.95].forEach(y=>{cyl(g,.06,.2,'epoxy',x,y,-.05,'z',{r2:.07});cyl(g,.02,.24,'copper',x,y,-.05,'z');}));});
+
+P({name:'Main busbars, R-Y-B',area:A6,ex:[0,0.6,-0.35],
+ fn:'Run through every cubicle of the lineup. Sleeved in phase colours with shrouded joints.',
+ spec:[['Rating','2500 A Cu'],['Size','e.g. 2 × 100×10 mm per phase'],['Insulation','36 kV heat-shrink sleeve'],['Qty basis','3 ph × 2 bars × panel width']],
+ bom:[['MV-06-01','Main busbar, Cu, 2500 A','B'],['MV-06-02','Busbar insulating sleeve, 36 kV','B'],['MV-06-03','Busbar joint shrouds / boots','B'],['MV-06-05','Inter-panel wall bushings','B'],['MV-10-06','Busbar bolts & Belleville washers','C']]},
+ g=>{ZB.forEach((z,i)=>{box(g,.8,.1,.02,PH[i],0,1.95,z);box(g,.03,.1,.021,'copper',-.385,1.95,z);box(g,.03,.1,.021,'copper',.385,1.95,z);});});
+P({name:'Busbar support insulators',area:A6,ex:[0,0.38,-0.35],
+ fn:'Epoxy post insulators that hold the busbars against short-circuit forces.',
+ spec:[['Insulation','36 kV / 70 kV / 170 kVp'],['Withstand','80 kA peak'],['Qty','6 per panel']],
+ bom:[['MV-06-04','Busbar support insulators, 36 kV','B']]},
+ g=>{[-.3,.3].forEach(x=>{box(g,.04,.03,.6,'galv',x,1.785,-.45);ZB.forEach(z=>cyl(g,.028,.1,'insul',x,1.85,z));});});
+P({name:'Busbar droppers',area:A6,ex:[0,0.25,-0.2],
+ fn:'Tee-off links from each main busbar down to the bus-side spouts.',
+ spec:[['Material','EC-grade Cu, sleeved'],['Joints','Bolted M12, plated']],
+ bom:[['MV-06-06','Droppers / tee-off links','B'],['MV-06-07','Bus riser link set (coupler only)','B']]},
+ g=>{XP.forEach((x,i)=>{const z=ZB[i];box(g,.06,.6,.01,'copper',x,1.6,z);const len=Math.abs(z+.15);box(g,.06,.01,len,'copper',x,1.3,(z-.15)/2);box(g,.062,.04,.012,PH[i],x,1.75,z);});});
+
+P({name:'Current transformers',area:A7,ex:[0,0.3,-0.8],
+ fn:'Three-core cast-resin CTs: a PS core for differential protection, a 5P20 core for overcurrent, and a 0.2S core for metering.',
+ spec:[['I/C, B/C','2500-1250/1-1-1 A'],['O/G','600-300/1-1-1 A'],['Insulation','36 / 70 / 170 kV'],['Makes','Kappa, Pragati, ABB, Siemens']],
+ bom:[['MV-07-01','CT 36 kV, incomer / coupler','B'],['MV-07-02','CT 36 kV, transformer feeder','B'],['MV-04-10','CT / VT mounting brackets','M']]},
+ g=>{XP.forEach(x=>{box(g,.14,.2,.16,'resin',x,.95,-.38,{e:1});box(g,.08,.04,.03,'black',x,.88,-.285);box(g,.06,.035,.002,'galv',x,1.0,-.299);});});
+P({name:'Line VTs (draw-out, incomer)',area:A7,ex:[0,-0.45,0.55],
+ fn:'Voltage transformers on the incoming cable side, feeding the relay (directional, under/over-voltage) and the meter. Draw-out with HV fuses.',
+ spec:[['Ratio','33/√3 kV / 110/√3 V'],['Class','0.5 / 3P, 50 VA'],['Fuses','36 kV, 0.5–2 A'],['Panel','Incomer only']],
+ bom:[['MV-07-03','Line VT, draw-out','B'],['MV-07-04','HV fuse for VT, 36 kV','B']]},
+ g=>{box(g,.6,.02,.2,'steelDark',0,.17,-.15);XP.forEach(x=>{box(g,.12,.2,.14,'resin',x,.29,-.15,{e:1});cyl(g,.018,.08,'white',x,.43,-.15);});});
+P({name:'Core balance CT (feeders)',area:A7,ex:[0,-0.32,-0.45],
+ fn:'Ring CT around all three cable cores for sensitive earth-fault protection. Fitted on transformer-feeder panels.',
+ spec:[['Ratio','e.g. 50/1 A'],['Function','50Ns sensitive earth fault'],['Panel','O/G feeders']],
+ bom:[['MV-07-05','Core balance CT','B']]},
+ g=>{const t=new THREE.Mesh(new THREE.TorusGeometry(.29,.035,12,48),mat('resin'));t.rotation.x=Math.PI/2;t.scale.set(1,.45,1);t.position.set(0,.25,-.62);g.add(t);});
+P({name:'Surge arresters (feeders)',area:A7,ex:[0,0.1,-0.75],
+ fn:'Metal-oxide arresters on the cable side of transformer feeders, protecting cables and transformers from switching surges. Also shown: the capacitive voltage presence indicator taps.',
+ spec:[['Rating','30 kV, 10 kA, polymer'],['Panel','O/G feeders'],['Check','Confirm system earthing']],
+ bom:[['MV-07-07','Surge arresters, 30 kV','B'],['MV-07-06','Voltage presence indicating system','B']]},
+ g=>{XP.forEach(x=>{cyl(g,.025,.26,'polymer',x,.75,-.73);[.66,.72,.78,.84].forEach(y=>cyl(g,.045,.01,'polymer',x,y,-.73));
+  cyl(g,.02,.02,'galv',x,.89,-.73);box(g,.06,.02,.06,'galv',x,.61,-.73);cyl(g,.004,.11,'cable',x,.9,-.675,'z');});});
+
+P({name:'Earthing switch',area:A8,ex:[0,-0.25,0.35],
+ fn:'Fault-make earthing switch on the cable side, mechanically interlocked with the breaker truck.',
+ spec:[['Making','80 kA peak'],['Short-time','31.5 kA 3 s'],['Interlock','Truck in Test / Isolated only']],
+ bom:[['MV-08-01','Earthing switch, 36 kV, fault-make','B'],['MV-08-02','Operating mechanism & interlock','B']]},
+ g=>{cyl(g,.015,.74,'galv',0,.4,-.45,'x');const a=.5;
+  XP.forEach(x=>{box(g,.03,.22,.008,'copper',x,.4+.11*Math.cos(a),-.45-.11*Math.sin(a),{rx:-a});});box(g,.08,.12,.08,'steelDark',.33,.4,-.45,{e:1});});
+P({name:'Cable termination bars',area:A8,ex:[0,-0.15,-0.4],
+ fn:'Copper bars from the cable-side spouts, through the CTs, down to the cable lugs. Drilled for 2–4 cables per phase.',
+ spec:[['Material','EC-grade Cu, tin-plated'],['Height','≥ 500 mm above gland plate']],
+ bom:[['MV-08-03','Cable termination bars','B']]},
+ g=>{XP.forEach(x=>{box(g,.05,.01,.47,'copper',x,.95,-.385);box(g,.05,.4,.01,'copper',x,.75,-.62);box(g,.03,.03,.03,'tin',x,.6,-.605);});});
+P({name:'Cables, terminations & cleats',area:A8,ex:[0,-0.6,-0.45],
+ fn:'33 kV single-core XLPE cables with heat-shrink terminations, held by non-magnetic trefoil cleats. Cables, glands and terminations are normally supplied by the cable contractor.',
+ spec:[['Cable','1C 33 kV (E) XLPE, Al/Cu'],['Cleats','Non-magnetic, trefoil'],['Scope','Cleats by panel builder']],
+ bom:[['MV-08-04','Cable cleats / clamps','B'],['MV-08-07','Cable glands (by others)','B'],['MV-08-08','Termination kits (by others)','B']]},
+ g=>{XP.forEach(x=>{cyl(g,.032,.42,'cable',x,.11,-.62);cyl(g,.04,.22,'hs',x,.42,-.62);[.36,.42,.48].forEach(y=>cyl(g,.06,.008,'hs',x,y,-.62));box(g,.035,.06,.012,'tin',x,.56,-.61);});
+  box(g,.6,.03,.06,'alu',0,.16,-.62);});
+P({name:'Earth busbar',area:A8,ex:[0,-0.45,-0.15],
+ fn:'Continuous copper earth bar through the lineup, connected to the earth grid at both ends.',
+ spec:[['Size','Cu 50 × 6 mm'],['Qty basis','Panel width per panel']],
+ bom:[['MV-08-05','Earth busbar, Cu 50×6','B'],['MV-08-06','Earth bus joint links','B']]},
+ g=>{box(g,.8,.05,.006,'copper',0,.16,-.76);});
+
+P({name:'Numerical protection relay',area:A9,ex:[0,0,2.6],
+ fn:'IEC 61850 feeder relay. Incomer: 50/51, 50N/51N, 67/67N, 27/59, 81. Coupler: adds 25 sync-check. Transformer feeder: 50/51, 50N/51N, 50Ns, 87T if specified.',
+ spec:[['Comms','IEC 61850, PRP'],['Aux supply','110 V DC'],['Makes','ABB 615, Siemens 7SJ/7UT, Schneider P3, SEL']],
+ bom:[['MV-09-01','Feeder management relay, incomer','B'],['MV-09-02','Bus coupler relay','B'],['MV-09-03','Transformer feeder relay','B'],['MV-09-04','Lockout relay (86)','B'],['MV-09-05','TCS relay (74)','B']]},
+ g=>{box(g,.17,.15,.2,'relay',-.18,2.08,.74,{e:1});box(g,.1,.04,.005,'lcd',-.2,2.12,.842);
+  for(let i=0;i<4;i++)cyl(g,.004,.004,i?'green':'red',-.245,2.13-i*.018,.842,'z');
+  for(let i=0;i<3;i++)box(g,.016,.012,.006,'black',-.21+i*.022,2.035,.842);});
+P({name:'Multifunction meter',area:A9,ex:[0,0,2.6],
+ fn:'Class 0.2S meter for energy, demand and harmonics, reporting to the EPMS over Modbus TCP / IEC 61850.',
+ spec:[['Accuracy','Class 0.2S'],['Comms','Modbus TCP / IEC 61850'],['Makes','Schneider PM8000, Secure, Elmeasure']],
+ bom:[['MV-09-07','Multifunction meter, Cl 0.2S','B']]},
+ g=>{box(g,.096,.096,.08,'black',.12,2.13,.79,{e:1});box(g,.07,.05,.004,'lcd',.12,2.14,.832);});
+P({name:'Indication lamps & control switches',area:A9,ex:[0,0,2.6],
+ fn:'Breaker status lamps (red = closed, green = open, amber = trip), TNC switch, Local/Remote selector and an emergency trip push button.',
+ spec:[['Lamps','22.5 mm LED, 110 V DC'],['Switches','TNC spring-return; L/R lockable']],
+ bom:[['MV-09-08','TNC switch','B'],['MV-09-09','Local / Remote selector','B'],['MV-09-10','Indication lamps','B'],['MV-09-11','Emergency trip push button','B']]},
+ g=>{[['red',.04],['green',.10],['amber',.16]].forEach(a=>cyl(g,.014,.05,a[0],a[1],1.96,.81,'z'));
+  cyl(g,.028,.04,'black',.29,1.96,.81,'z');box(g,.012,.05,.015,'red',.29,1.96,.835);
+  cyl(g,.022,.04,'black',.29,2.13,.81,'z');box(g,.01,.04,.014,'black',.29,2.13,.835);cyl(g,.02,.03,'red',-.33,1.95,.82,'z');});
+P({name:'LV mounting plate, MCBs & terminals',area:A9,ex:[0,0.55,0.3],
+ fn:'GI mounting plate inside the LV compartment carrying control MCBs, auxiliary relays, CT test block, terminal blocks and wiring duct.',
+ spec:[['Plate','GI 2.0 mm (in-house)'],['Terminals','4 mm² + CT disconnect type'],['Wiring','1.5 mm² control, 2.5 mm² CT, FRLS']],
+ bom:[['MV-09-18','LV compartment mounting plate','M'],['MV-09-06','Auxiliary relays','B'],['MV-09-12','MCB, 2P DC','B'],['MV-09-13','MCB, 2P AC','B'],['MV-09-14','CT test block','B'],['MV-09-15','Terminal blocks, 4 mm²','B'],['MV-09-16','CT disconnect terminals','B'],['MV-10-01','Control wire 1.5 mm²','C'],['MV-10-02','CT / VT wire 2.5 mm²','C'],['MV-10-03','Wiring duct','C'],['MV-10-04','DIN rail','C']]},
+ g=>{box(g,.7,.4,.01,'galv',0,2.05,.37);box(g,.6,.035,.008,'tb',0,2.16,.38);
+  for(let i=0;i<8;i++)box(g,.018,.085,.065,i<6?'white':'contactor',-.25+i*.035,2.16,.415);
+  for(let i=0;i<40;i++)box(g,.006,.045,.05,i%10===9?'yellow':'tb',-.3+i*.013,1.93,.4);
+  box(g,.66,.04,.05,'duct',0,2.25,.395);box(g,.66,.04,.05,'duct',0,1.86,.395);});
+P({name:'Space heaters & hygrostat',area:A9,ex:[-0.55,0,0],
+ fn:'Anti-condensation heaters in the breaker and cable compartments, switched by thermostat and hygrostat.',
+ spec:[['Rating','100 W, 240 V AC'],['Qty','2 sets per panel']],
+ bom:[['MV-09-19','Space heater + thermostat','B'],['MV-09-20','Hygrostat','B'],['MV-09-21','Panel LED lamp + door switch','B']]},
+ g=>{box(g,.03,.08,.25,'alu',-.34,.3,-.3,{e:1});for(let i=0;i<5;i++)box(g,.012,.1,.004,'alu',-.32,.3,-.4+i*.05);box(g,.03,.06,.04,'white',-.36,.5,-.15);});
+})();
+
+/* ================= LV: 415 V, 4000 A main switchboard (incomer + feeder sections) ================= */
+(function(){
+const m=newModel('lv',{title:'415 V, 4000 A LV main switchboard',
+ rating:'415 V 3φ 4W · 4000 A Cu · 65 kA/1 s · Form 4b · IP42 · IEC 61439-2',
+ size:'≈ 1000 W × 1000 D × 2200 H mm per section (assumed)',
+ overview:'Two sections of a data-centre LV main switchboard: an ACB incomer section (4000 A, 4-pole) and an MCCB feeder section with a separate cable alley. The bus coupler section is the same as the incomer. Item codes match the Excel BOM (LV-01 … LV-11).',
+ scale:[1,1,1],target:new THREE.Vector3(0,1.1,0.4),dir:new THREE.Vector3(.55,.34,.76),dist:9.2});
+const P=(d,f)=>addPart(m,d,f);const PH=['R','Y','B','N'];const ZH=[-.18,-.26,-.34,-.42];
+const POLE=[-.72,-.58,-.44,-.30];const YC=[1.75,1.45,1.15,.85,.55,.25];
+const A1='LV-01 · Base frame & skeleton',A2='LV-02 · Enclosure covers',A3='LV-03 · Doors & door hardware',A4='LV-04 · Form 4b segregation',
+ A5='LV-05 · Mounting plates & brackets',A6='LV-06 · Busbar system',A7='LV-07 · Switching devices',A8='LV-08 · Metering, protection & monitoring',A9='LV-09 · Control wiring & accessories';
+
+P({name:'Base frame',area:A1,ex:[0,-0.6,0],
+ fn:'Folded channel base for each section, bolted to the floor.',
+ spec:[['Material','CRCA 3.0 mm'],['Fixing','M12 anchor bolts']],
+ bom:[['LV-01-01','Base frame - front/rear members','M'],['LV-01-02','Base frame - side members','M']]},
+ g=>{[-.5,.5].forEach(x=>{box(g,1.0,.1,.06,'galv',x,.05,.47,{e:1});box(g,1.0,.1,.06,'galv',x,.05,-.47,{e:1});});[-.97,-.03,.03,.97].forEach(x=>box(g,.06,.1,.88,'galv',x,.05,0,{e:1}));});
+P({name:'Frame skeleton',area:A1,ex:[0,0,0],
+ fn:'Punched uprights and horizontal members that carry partitions, mounting plates and covers. If you build under a licensed LV system, these profiles may come from the licensor.',
+ spec:[['Material','CRCA 2.5 mm, 25 mm pitch punching'],['Per section','4 uprights, 8 members']],
+ bom:[['LV-01-03','Vertical uprights','M'],['LV-01-04','Horizontal members','M'],['LV-01-05','Corner gussets','M'],['LV-01-06','Lifting brackets','M']]},
+ g=>{[-.98,-.02,.02,.98].forEach(x=>[-.48,.48].forEach(z=>box(g,.04,2.1,.04,'steelDark',x,1.15,z)));
+  [.12,2.18].forEach(y=>{[-.5,.5].forEach(x=>[-.48,.48].forEach(z=>box(g,.92,.04,.04,'steelDark',x,y,z)));[-.98,-.02,.02,.98].forEach(x=>box(g,.04,.04,.92,'steelDark',x,y,0));});});
+P({name:'Side sheet, LH',area:A2,enclosure:true,ex:[-1.1,0,0],
+ fn:'Left side cover; at the end of the board it becomes the end cover.',
+ spec:[['Material','CRCA 1.6 mm'],['Paint','RAL 7035']],
+ bom:[['LV-02-01','Side sheets','M'],['LV-11-01','End covers','M']]},
+ g=>{box(g,.02,2.1,1.0,'steel',-1.0,1.15,0,{e:1});});
+P({name:'Side sheet, RH',area:A2,enclosure:true,ex:[1.1,0,0],
+ fn:'Right side cover. Where the board continues, the busbars pass through a shrouded opening.',
+ spec:[['Material','CRCA 1.6 mm'],['Paint','RAL 7035']],
+ bom:[['LV-02-01','Side sheets','M']]},
+ g=>{box(g,.02,2.1,1.0,'steel',1.0,1.15,0,{e:1});});
+P({name:'Rear covers',area:A2,enclosure:true,ex:[0,0,-1.2],
+ fn:'Bolted two-piece rear covers for each section, giving access to busbar joints for thermography and re-torquing.',
+ spec:[['Material','CRCA 1.6 mm'],['Access','Bolted, tool-only']],
+ bom:[['LV-02-02','Rear covers (2-piece)','M'],['LV-10-04','Danger plate, labels','B']]},
+ g=>{[-.5,.5].forEach(x=>{box(g,.98,1.05,.02,'steel',x,1.675,-.5,{e:1});box(g,.98,1.05,.02,'steel',x,.625,-.5,{e:1});});box(g,.16,.1,.004,'danger',-.5,1.6,-.512);});
+P({name:'Roof, canopy & plinth covers',area:A2,enclosure:true,ex:[0,0.9,0],
+ fn:'Roof sheets with the ventilation cutout, lifting eyes and front/rear plinth covers.',
+ spec:[['Roof','CRCA 2.0 mm'],['Plinth','CRCA 1.6 mm']],
+ bom:[['LV-02-03','Roof sheet','M'],['LV-02-04','Roof canopy / hood','M'],['LV-02-05','Plinth covers','M']]},
+ g=>{box(g,2.0,.03,1.0,'steel',0,2.215,0,{e:1});[[-.9,-.4],[.9,-.4],[-.9,.4],[.9,.4]].forEach(a=>cyl(g,.02,.06,'galv',a[0],2.26,a[1]));});
+
+P({name:'Incomer section doors',area:A3,enclosure:true,ex:[0,0,1.9],
+ fn:'Metering door, ACB door with escutcheon cutout so the breaker can be operated with the door shut, and the lower incoming-termination cover with louvres.',
+ spec:[['Material','CRCA 2.0 mm'],['Hardware','Hinges, quarter-turn locks, gasket, earth braids'],['Louvres','With filter']],
+ bom:[['LV-03-01','ACB door with escutcheon cutout','M'],['LV-03-02','ACB escutcheon frame','M'],['LV-03-03','Metering compartment door','M'],['LV-03-07','Door stiffeners','M'],['LV-03-08','Hinges','B'],['LV-03-09','Door locks','B'],['LV-03-10','Door gasket','B'],['LV-03-11','Louvre with filter','B'],['LV-03-12','Door earthing braid','B']]},
+ g=>{box(g,.98,.28,.02,'steel',-.5,2.05,.5,{e:1});doorCut(g,.98,.93,.02,'steel',-.5,1.425,.5,.44,.4,-.01,-.075);box(g,.98,.83,.02,'steel',-.5,.525,.5,{e:1});
+  [2.05,1.425,.525].forEach(y=>box(g,.02,.08,.025,'black',-.06,y,.52));for(let i=0;i<6;i++)box(g,.4,.012,.012,'steelDark',-.5,.25+i*.035,.512);});
+P({name:'Feeder section doors',area:A3,enclosure:true,ex:[0,0,1.9],
+ fn:'One door per MCCB module, the busbar chamber front cover and the full-height cable alley door.',
+ spec:[['Material','CRCA 2.0 mm / 1.6 mm cover'],['Qty','6 module doors + alley door + cover']],
+ bom:[['LV-03-04','Feeder module doors','M'],['LV-03-05','Cable alley door','M'],['LV-03-06','Busbar chamber front cover','M'],['LV-03-08','Hinges','B'],['LV-03-09','Door locks','B']]},
+ g=>{box(g,.6,.28,.02,'steel',.31,2.05,.5,{e:1});YC.forEach(y=>{box(g,.6,.29,.02,'steel',.31,y,.5,{e:1});box(g,.015,.06,.025,'black',.585,y,.52);});
+  box(g,.37,2.07,.02,'steel',.81,1.15,.5,{e:1});box(g,.02,.1,.025,'black',.97,1.15,.52);for(let i=0;i<6;i++)box(g,.22,.012,.012,'steelDark',.81,.25+i*.035,.512);});
+
+P({name:'Form 4b partitions',area:A4,enclosure:true,ex:[0,0,0],
+ fn:'Form 4b: busbars separated from functional units, each unit separated from the others, and each feeder\'s outgoing terminals in its own compartment in the cable alley.',
+ spec:[['Material','GI 1.6 mm'],['Shrouds','Polycarbonate / FR-4 (bought)']],
+ bom:[['LV-04-01','Horizontal module partitions','M'],['LV-04-02','Rear vertical partition','M'],['LV-04-03','Busbar chamber barrier','M'],['LV-04-04','Cable alley partition','M'],['LV-04-05','Module side walls','M'],['LV-04-06','Terminal compartment covers','M'],['LV-04-07','Busbar shrouds','B']]},
+ g=>{box(g,1.96,.012,.39,'galv',0,1.9,.295,{e:1});box(g,1.96,.3,.012,'galv',0,2.05,.1,{e:1});
+  box(g,.96,.012,.6,'galv',-.5,.95,.19,{e:1});box(g,.96,1.78,.012,'galv',-.5,1.01,-.12,{e:1});
+  [.4,.7,1.0,1.3,1.6].forEach(y=>box(g,.6,.012,.6,'galv',.31,y,.19,{e:1}));box(g,.6,1.8,.012,'galv',.31,1.0,-.11,{e:1});
+  box(g,.012,1.8,.98,'galv',.62,1.0,0,{e:1});YC.forEach(y=>box(g,.012,.22,.25,'galv',.64,y,.3));});
+
+P({name:'Mounting plates & ACB shelf',area:A5,ex:[0,0,0.35],
+ fn:'ACB support shelf, MCCB mounting plates, metering plate and busbar/CT brackets.',
+ spec:[['ACB shelf','CRCA 3.0 mm'],['MCCB plates','GI 2.5 mm'],['Meter plate','GI 2.0 mm']],
+ bom:[['LV-05-01','ACB mounting shelf / base','M'],['LV-05-02','MCCB mounting plates','M'],['LV-05-03','Meter / control mounting plate','M'],['LV-05-04','CT mounting brackets','M'],['LV-05-05','Busbar support brackets','M']]},
+ g=>{box(g,.7,.02,.5,'steelDark',-.51,1.045,.1);box(g,.9,.26,.012,'galv',-.5,2.05,.11);YC.forEach(y=>box(g,.56,.26,.012,'galv',.31,y,-.09));});
+P({name:'Gland plates',area:A5,ex:[0,-0.9,0],
+ fn:'Removable bottom plates for cable entry, drilled at site.',
+ spec:[['Material','Aluminium 3.0 mm (1C) / CRCA 3.0 mm']],
+ bom:[['LV-05-07','Gland plate','M']]},
+ g=>{[-.5,.5].forEach(x=>box(g,.98,.012,.98,'alu',x,.1,0,{e:1}));for(let i=0;i<6;i++)cyl(g,.028,.04,'brass',.7+(i%3)*.08,.09,.05+Math.floor(i/3)*.14);});
+P({name:'Cable alley supports & outgoing cables',area:A5,ex:[0.55,0,0.3],
+ fn:'Cable support rails in the cable alley and the outgoing feeder cables, which are normally supplied by the cable contractor.',
+ spec:[['Rails','CRCA 2.5 mm (in-house)'],['Cables','By others']],
+ bom:[['LV-05-06','Cable support rails','M']]},
+ g=>{[.68,.94].forEach(x=>box(g,.025,1.9,.025,'steelDark',x,1.1,-.35));for(let y=.3;y<2;y+=.2)box(g,.28,.012,.025,'steelDark',.81,y,-.35);
+  for(let i=0;i<6;i++){const x=.7+(i%3)*.08,z=.05+Math.floor(i/3)*.14,top=YC[i]-.02;cyl(g,.022,top-.05,'cable',x,(top+.05)/2,z);box(g,.035,.05,.014,'tin',x,top+.02,z);}});
+
+P({name:'Main horizontal busbars, R-Y-B-N',area:A6,ex:[0,0.6,-0.25],
+ fn:'4000 A copper main bus with a 100 % neutral, running through every section of the board. Sleeved in phase colours.',
+ spec:[['Rating','4000 A, 65 kA 1 s'],['Size','e.g. 4 × 120×10 mm per phase'],['Neutral','100 % (harmonic-rich IT load)'],['Qty basis','4 bars × 4 conductors × section width']],
+ bom:[['LV-06-01','Main horizontal busbar, Cu, 4000 A','B'],['LV-06-06','Busbar insulating sleeve','B'],['LV-10-01','Busbar bolts & Belleville washers','C'],['LV-11-02','Inter-section fish-plates','B']]},
+ g=>{ZH.forEach((z,i)=>{box(g,2.0,.12,.04,PH[i],0,2.05,z);box(g,.03,.12,.041,'copper',-.985,2.05,z);box(g,.03,.12,.041,'copper',.985,2.05,z);});});
+P({name:'DMC busbar supports',area:A6,ex:[0,0.4,-0.25],
+ fn:'Dough-moulded-compound supports that hold the busbars at fixed spacing against short-circuit forces.',
+ spec:[['Withstand','143 kA peak (65 kA)'],['Material','DMC / SMC']],
+ bom:[['LV-06-05','DMC / SMC busbar supports','B']]},
+ g=>{[-.8,-.2,.4,.9].forEach(x=>box(g,.05,.18,.32,'dmc',x,2.05,-.3,{e:1}));});
+P({name:'ACB links & neutral link',area:A6,ex:[0,0.15,-0.6],
+ fn:'Copper links from the ACB top terminals up to the main bus and from the bottom terminals down to the incoming transformer termination.',
+ spec:[['Material','Laminated / solid Cu'],['Neutral','100 % rated link']],
+ bom:[['LV-06-02','ACB incoming / outgoing links','B'],['LV-06-07','Neutral link / bar','B']]},
+ g=>{POLE.forEach((x,i)=>{const z=ZH[i],len=Math.abs(z+.13);
+  box(g,.07,.015,len,'copper',x,1.45,(z-.13)/2);box(g,.07,.55,.015,'copper',x,1.725,z);
+  box(g,.07,.015,len,'copper',x,1.1,(z-.13)/2);box(g,.07,.8,.015,'copper',x,.7,z);box(g,.09,.08,.02,'tin',x,.35,z);});});
+P({name:'Vertical droppers & MCCB links',area:A6,ex:[0,0,-0.75],
+ fn:'Vertical busbars behind the rear partition feeding every MCCB module, with the copper links to each MCCB.',
+ spec:[['Rating','2000 A Cu, 3P + N'],['Access','Behind rear partition']],
+ bom:[['LV-06-03','Vertical droppers, Cu, 2000 A','B'],['LV-06-04','MCCB connection links','B']]},
+ g=>{[.08,.16,.24,.32].forEach((x,i)=>{box(g,.05,1.79,.012,'copper',x,1.095,ZH[i]);box(g,.052,.04,.014,PH[i],x,1.85,ZH[i]);});
+  YC.forEach(y=>[.25,.31,.37].forEach(x=>box(g,.02,.012,.12,'copper',x,y+.1,-.16)));});
+P({name:'Earth busbar',area:A6,ex:[0,-0.5,-0.3],
+ fn:'Copper earth bar along the full length at the bottom rear, connected to the earth grid at both ends.',
+ spec:[['Size','Cu 50 × 10 mm']],
+ bom:[['LV-06-08','Earth busbar, Cu 50×10','B']]},
+ g=>{box(g,2.0,.05,.01,'copper',0,.16,-.47);});
+
+P({name:'ACB draw-out cradle',area:A7,ex:[0,0,0.6],
+ fn:'Fixed part of the draw-out ACB, with rear horizontal terminals and safety shutters. Supplied with the ACB.',
+ spec:[['Positions','Connected / Test / Disconnected'],['Terminals','Horizontal rear, 4-pole']],
+ bom:[['LV-07-01','Part of ACB supply','B']]},
+ g=>{box(g,.02,.56,.5,'steelDark',-.85,1.36,.1,{e:1});box(g,.02,.56,.5,'steelDark',-.17,1.36,.1,{e:1});box(g,.68,.56,.015,'steelDark',-.51,1.36,-.105,{e:1});box(g,.68,.015,.5,'steelDark',-.51,1.065,.1);
+  POLE.forEach(x=>[1.45,1.1].forEach(y=>box(g,.06,.015,.08,'copper',x,y,-.15)));});
+P({name:'Air circuit breaker 4000 A, 4P',area:A7,ex:[0,0,1.35],
+ fn:'Main incomer (and bus coupler). Draw-out, electrically operated, with an LSIG release, communications and an energy-reducing maintenance (ERMS) mode to cut arc-flash energy during work.',
+ spec:[['Rating','4000 A, 4P, 65 kA (Icu = Ics)'],['Release','LSIG + comms + ERMS'],['Accessories','Motor, shunt, closing coil, UVR'],['Makes','ABB Emax 2, Schneider MTZ, Siemens 3WA, LK U-Power']],
+ bom:[['LV-07-01','ACB 4000 A, 4P, draw-out, EDO','B'],['LV-11-03','ACB lifting device','B'],['LV-11-04','ACB racking handle','B']]},
+ g=>{box(g,.62,.5,.45,'mccb',-.51,1.35,.125,{e:1});box(g,.42,.36,.13,'fascia',-.51,1.35,.415,{e:1});
+  box(g,.1,.12,.006,'lcd',-.63,1.42,.483);cyl(g,.02,.01,'green',-.44,1.45,.484,'z');cyl(g,.02,.01,'red',-.38,1.45,.484,'z');
+  box(g,.05,.025,.004,'yellow',-.41,1.38,.483);box(g,.06,.12,.025,'black',-.51,1.24,.49);box(g,.1,.03,.003,'white',-.37,1.26,.483);
+  POLE.forEach(x=>box(g,.11,.08,.32,'black',x,1.64,.12));});
+P({name:'MCCB feeders 630 A',area:A7,ex:[0,0,1.2],
+ fn:'Outgoing feeders (e.g. to UPS or cooling MCCs). Microprocessor release, motorised for remote control, with door-interlocked rotary handles.',
+ spec:[['Rating','630 A, 4P, 65 kA'],['Qty','3 per feeder section'],['Makes','ABB Tmax XT, Schneider NSX, Siemens 3VA, LK DN']],
+ bom:[['LV-07-02','MCCB 630 A, 4P','B'],['LV-07-04','Extended rotary handle','B']]},
+ g=>{YC.slice(0,3).forEach(y=>{box(g,.21,.25,.14,'mccb',.31,y,0,{e:1});box(g,.08,.1,.01,'black',.31,y,.075);cyl(g,.006,.42,'galv',.31,y,.29,'z');cyl(g,.035,.025,'yellow',.31,y,.523,'z');box(g,.014,.065,.02,'black',.31,y,.54);
+  box(g,.3,.012,.03,'copper',.47,y-.1,0);});});
+P({name:'MCCB feeders 250 A',area:A7,ex:[0,0,1.2],
+ fn:'Smaller outgoing feeders, same construction as the 630 A feeders.',
+ spec:[['Rating','250 A, 4P, 65 kA'],['Qty','3 per feeder section']],
+ bom:[['LV-07-03','MCCB 250 A, 4P','B'],['LV-07-04','Extended rotary handle','B']]},
+ g=>{YC.slice(3).forEach(y=>{box(g,.14,.2,.1,'mccb',.31,y,.02,{e:1});box(g,.06,.08,.01,'black',.31,y,.075);cyl(g,.006,.43,'galv',.31,y,.29,'z');cyl(g,.035,.025,'yellow',.31,y,.523,'z');box(g,.014,.065,.02,'black',.31,y,.54);
+  box(g,.3,.012,.03,'copper',.47,y-.08,0);});});
+
+P({name:'Incomer & neutral CTs',area:A8,ex:[0,0.3,-0.5],
+ fn:'Window-type CTs on the ACB top terminals for metering and protection, plus a neutral CT for restricted / standby earth fault.',
+ spec:[['Ratio','4000/1 A'],['Class','0.5S 15 VA + 5P20; neutral PS']],
+ bom:[['LV-08-01','Protection / metering CTs 4000/1 A','B'],['LV-08-02','Neutral CT for REF / SBEF','B'],['LV-08-06','REF / SBEF relay','B']]},
+ g=>{POLE.forEach(x=>box(g,.12,.1,.05,'resin',x,1.45,-.2,{e:1}));});
+P({name:'Power quality meter & door devices',area:A8,ex:[0,0,2.25],
+ fn:'Class A power-quality meter for the incomer, R-Y-B and breaker-status lamps, SPD status lamp and ON/OFF push buttons on the metering door.',
+ spec:[['PQ meter','IEC 61000-4-30 Class A, Modbus TCP'],['Lamps','22.5 mm LED']],
+ bom:[['LV-08-03','Power quality meter, Class A','B'],['LV-08-11','Indication lamps','B'],['LV-08-12','ON / OFF push buttons','B']]},
+ g=>{box(g,.144,.144,.09,'black',-.82,2.05,.47,{e:1});box(g,.11,.08,.004,'lcd',-.82,2.06,.517);
+  [['R',-.6],['Y',-.55],['B',-.5],['red',-.4],['green',-.35],['amber',-.3]].forEach(a=>cyl(g,.013,.03,a[0],a[1],2.1,.52,'z'));
+  cyl(g,.016,.025,'green',-.55,1.99,.52,'z');cyl(g,.016,.025,'red',-.49,1.99,.52,'z');cyl(g,.013,.03,'white',-.2,2.1,.52,'z');});
+P({name:'Feeder MFMs & CTs',area:A8,ex:[0.0,0,2.25],
+ fn:'A compact multifunction meter on each feeder door with its CTs on the outgoing links, giving per-feeder energy data to the EPMS.',
+ spec:[['MFM','Class 0.5S, Modbus'],['CTs','Ratio per MCCB, Cl 0.5S']],
+ bom:[['LV-08-04','Feeder MFM, Cl 0.5S','B'],['LV-08-05','CTs for feeder MFM','B']]},
+ g=>{YC.forEach(y=>{box(g,.096,.096,.07,'black',.49,y,.475);box(g,.07,.045,.004,'lcd',.49,y+.01,.512);});});
+P({name:'SPD & arc-flash protection',area:A8,ex:[0,0.35,0.7],
+ fn:'Type 1+2 surge protective device on the incomer, optical arc-flash sensors in each compartment wired to the arc-flash relay, and wireless busbar-joint temperature sensors.',
+ spec:[['SPD','4P, Iimp 25 kA/pole'],['Arc-flash','Relay per lineup + 3 sensors per section'],['Temp sensors','Optional, 6 per section']],
+ bom:[['LV-08-10','Surge protective device','B'],['LV-08-07','Arc-flash detection relay','B'],['LV-08-08','Arc-flash light sensors','B'],['LV-08-09','Busbar-joint temperature sensors','B']]},
+ g=>{box(g,.14,.09,.07,'white',-.3,2.0,.15);box(g,.12,.02,.004,'red',-.3,2.0,.186);
+  [[-.5,1.85,.0],[-.1,1.7,.3],[.5,1.85,-.05],[.5,1.2,.3]].forEach(a=>cyl(g,.015,.03,'black',a[0],a[1],a[2]));});
+P({name:'Control MCBs, relays & terminals',area:A8,ex:[0,0.35,0.3],
+ fn:'Control MCBs, auxiliary relays, terminal blocks and wiring on the metering plate, plus the Ethernet gateway to the BMS / EPMS.',
+ spec:[['Terminals','2.5–6 mm² + CT shorting'],['Wiring','1.5 / 2.5 mm² Cu FRLS']],
+ bom:[['LV-08-13','Control MCBs / fuses','B'],['LV-08-14','Auxiliary relays','B'],['LV-08-15','Ethernet gateway / switch','B'],['LV-09-01','Terminal blocks','B'],['LV-09-02','CT shorting terminals','B'],['LV-09-06','Control wire 1.5 mm²','C'],['LV-09-07','CT wire 2.5 mm²','C'],['LV-09-08','Wiring duct and DIN rail','C'],['LV-09-09','Lugs, ferrules, ties','C']]},
+ g=>{for(let i=0;i<8;i++)box(g,.018,.085,.065,i<6?'white':'contactor',-.95+i*.025,2.12,.15);for(let i=0;i<30;i++)box(g,.007,.045,.05,i%10===9?'yellow':'tb',-.95+i*.012,1.98,.14);box(g,.5,.035,.04,'duct',-.75,2.19,.13);});
+P({name:'Exhaust fan & hood',area:A9,ex:[0,1.35,0],
+ fn:'Thermostat-controlled roof fan above the ACB section, drawing air in through the filtered door louvres.',
+ spec:[['Supply','230 V AC'],['Control','Thermostat']],
+ bom:[['LV-09-04','Exhaust fan with filter','B']]},
+ g=>{cyl(g,.12,.05,'steelDark',-.5,2.255,-.2);for(let i=0;i<5;i++)box(g,.1,.005,.03,'black',-.5,2.285,-.2,{ry:i*Math.PI/5});
+  box(g,.34,.012,.34,'steel',-.5,2.33,-.2,{e:1});[[-.65,-.35],[-.35,-.35],[-.65,-.05],[-.35,-.05]].forEach(a=>box(g,.02,.08,.02,'steel',a[0],2.28,a[1]));});
+P({name:'Space heaters & lighting',area:A9,ex:[0.4,-0.3,0.4],
+ fn:'Anti-condensation heaters with thermostats, and an LED panel lamp with door switch.',
+ spec:[['Heater','60–100 W, 240 V AC'],['Qty','1 set per section']],
+ bom:[['LV-09-03','Space heater + thermostat','B'],['LV-09-05','Panel LED lamp + door switch','B']]},
+ g=>{box(g,.22,.05,.03,'alu',.81,.25,.35,{e:1});box(g,.05,.07,.04,'white',.9,.42,.35);box(g,.22,.05,.03,'alu',-.5,.25,.3,{e:1});});
+})();
+
+/* ================= PDU: transformer-based power distribution unit ================= */
+(function(){
+const m=newModel('pdu',{title:'PDU - power distribution unit',
+ rating:'300 kVA isolation transformer · 415 V in · 415/240 V out · 4 × 42-way panelboards (assumed)',
+ size:'≈ 1600 W × 800 D × 2000 H mm (assumed from 1.6 × 0.8 m layout bays)',
+ overview:'Floor-standing PDU for the data hall: an isolation transformer in the left section and output panelboards with branch breakers and branch-circuit monitoring in the right section. Item codes match the PDU sheet of the Excel BOM (PDU-01 … PDU-12). Product definition is assumed (A-16) until GScale supplies the PDU specification.',
+ scale:[1,1,1],target:new THREE.Vector3(0,1.0,0.2),dir:new THREE.Vector3(.55,.34,.76),dist:6.4});
+const P=(d,f)=>addPart(m,d,f);
+const A1='PDU-01 · Base frame & skeleton',A2='PDU-02 · Enclosure covers',A3='PDU-03 · Doors & door hardware',A4='PDU-04 · Mounting plates & cable entry',A5='PDU-05 · Transformer',A6='PDU-06 · Input protection',A7='PDU-07 · Output distribution',A8='PDU-08 · Monitoring & control',A9='PDU-09 · Cooling',A12='PDU-12 · Packing';
+function slots(g,cx,cy,z,w,h,n){for(let i=0;i<n;i++)box(g,w,.012,.004,'fascia',cx,cy-h/2+(i+.5)*h/n,z);}
+const PB=[[.21,.55],[.59,.55],[.21,1.25],[.59,1.25]];
+P({name:'Base frame & skeleton',area:A1,ex:[0,-.6,0],fn:'Channel base, uprights and members for both sections, plus channels that carry the transformer.',spec:[['Material','CRCA 3.0 / 2.5 mm'],['Feet','Levelling feet or castors']],
+ bom:[['PDU-01-01','Base frame','M'],['PDU-01-02','Vertical uprights','M'],['PDU-01-03','Horizontal members','M'],['PDU-01-04','Transformer base channels','M'],['PDU-01-05','Lifting brackets','M'],['PDU-01-06','Levelling feet / castors','B']]},
+ g=>{box(g,1.6,.1,.06,'galv',0,.05,.37,{e:1});box(g,1.6,.1,.06,'galv',0,.05,-.37,{e:1});[-.77,0,.77].forEach(x=>box(g,.06,.1,.68,'galv',x,.05,0,{e:1}));
+  [-.78,0,.78].forEach(x=>[-.38,.38].forEach(z=>box(g,.04,1.9,.04,'steelDark',x,1.05,z)));[-.2,.2].forEach(z=>box(g,.62,.06,.08,'galv',-.4,.13,z));
+  [[-.75,-.35],[.75,-.35],[-.75,.35],[.75,.35]].forEach(a=>cyl(g,.03,.03,'black',a[0],-.015,a[1]));});
+P({name:'Side sheet, LH',area:A2,enclosure:true,ex:[-.9,0,0],fn:'Left side cover.',spec:[['Material','CRCA 1.6 mm']],bom:[['PDU-02-01','Side sheets','M']]},g=>{box(g,.02,1.9,.8,'steel',-.8,1.05,0,{e:1});});
+P({name:'Side sheet, RH',area:A2,enclosure:true,ex:[.9,0,0],fn:'Right side cover.',spec:[['Material','CRCA 1.6 mm']],bom:[['PDU-02-01','Side sheets','M']]},g=>{box(g,.02,1.9,.8,'steel',.8,1.05,0,{e:1});});
+P({name:'Rear covers, perforated',area:A2,enclosure:true,ex:[0,0,-.9],fn:'Perforated rear covers so transformer heat can escape.',spec:[['Material','CRCA 1.6 mm, perforated']],bom:[['PDU-02-02','Rear covers, perforated','M']]},
+ g=>{[-.4,.4].forEach(x=>{box(g,.78,1.88,.02,'steel',x,1.05,-.41,{e:1});slots(g,x,1.05,-.422,.6,1.6,22);});});
+P({name:'Roof with fan cutouts',area:A2,enclosure:true,ex:[0,.7,0],fn:'Roof with openings for the exhaust fans and top cable entry; plinth covers at the base.',spec:[['Roof','CRCA 2.0 mm'],['Plinth','CRCA 1.6 mm']],
+ bom:[['PDU-02-03','Roof with fan cutouts','M'],['PDU-02-04','Plinth covers','M']]},g=>{box(g,1.6,.03,.8,'steel',0,2.015,0,{e:1});box(g,1.58,.09,.01,'steel',0,.05,.4);box(g,1.58,.09,.01,'steel',0,.05,-.4);});
+P({name:'Internal partition',area:A2,enclosure:true,ex:[0,0,-.55],fn:'Separates the hot transformer section from the distribution section.',spec:[['Material','GI 1.6 mm']],bom:[['PDU-02-05','Internal partition','M']]},g=>{box(g,.012,1.88,.76,'galv',0,1.05,0,{e:1});});
+P({name:'Front doors, perforated',area:A3,enclosure:true,ex:[0,0,1.45],fn:'Two perforated front doors with keyed swing handles; the left door carries the touchscreen and EPO.',spec:[['Material','CRCA 2.0 mm, perforated'],['Hardware','Hinges, locks, earthing braids']],
+ bom:[['PDU-03-01','Front doors, perforated','M'],['PDU-03-02','Door stiffeners','M'],['PDU-03-04','Hinges','B'],['PDU-03-05','Door locks','B'],['PDU-03-06','Door earthing braid','B']]},
+ g=>{[-.4,.4].forEach(x=>{box(g,.78,1.88,.02,'steel',x,1.05,.41,{e:1});slots(g,x,.75,.422,.6,.9,14);box(g,.025,.18,.03,'black',x+(x<0?.35:-.35),1.05,.44);});});
+P({name:'Panelboard dead-front covers',area:A3,ex:[.25,0,.95],fn:'Inner covers over the panelboards with slots for the breaker toggles, so the doors can be opened without exposing live parts.',spec:[['Material','CRCA 1.6 mm'],['Qty','4']],bom:[['PDU-03-03','Panelboard dead-front covers','M']]},
+ g=>{PB.forEach(([x,y])=>{box(g,.34,.62,.012,'steel',x,y,.34,{e:1});box(g,.04,.54,.003,'fascia',x-.05,y,.347);box(g,.04,.54,.003,'fascia',x+.05,y,.347);});});
+P({name:'Mounting plates & gland plates',area:A4,ex:[0,0,-.4],fn:'Input MCCB plate, panelboard mounting pans and top / bottom aluminium gland plates.',spec:[['Plates','GI 2.0–2.5 mm'],['Gland plates','Al 3.0 mm']],
+ bom:[['PDU-04-01','Input MCCB mounting plate','M'],['PDU-04-02','Panelboard mounting pans','M'],['PDU-04-03','Gland plates top / bottom','M'],['PDU-04-04','Cable support / tie bars','M']]},
+ g=>{box(g,.6,.5,.012,'galv',-.4,1.65,-.3);PB.forEach(([x,y])=>box(g,.34,.62,.012,'galv',x,y,-.25));box(g,.7,.012,.6,'alu',.4,.11,0);box(g,.5,.012,.3,'alu',.4,1.985,-.15);});
+P({name:'Isolation transformer 300 kVA',area:A5,ex:[0,0,.75],fn:'Dry-type isolation transformer that creates a separately derived neutral for the IT loads and reduces harmonics reaching the upstream switchboard. Sits on anti-vibration pads with PT100 winding sensors.',
+ spec:[['Rating','300 kVA, 415 V Δ / 415-240 V Y (assumed)'],['Type','Dry type, Cu, class H, K-13'],['Monitoring','3 × PT100 + temperature relay']],
+ bom:[['PDU-05-01','Isolation transformer, 300 kVA','B'],['PDU-05-02','Anti-vibration pads','B'],['PDU-05-03','Transformer temperature monitor','B']]},
+ g=>{box(g,.62,.1,.2,'steelDark',-.4,.26,0,{e:1});box(g,.62,.1,.2,'steelDark',-.4,1.18,0,{e:1});[-.6,-.4,-.2].forEach(x=>{cyl(g,.09,.82,'resin',x,.72,0);cyl(g,.095,.04,'copper',x,1.15,0);box(g,.02,.12,.012,'copper',x,1.3,.06);});
+  [-.62,-.18].forEach(x=>[-.2,.2].forEach(z=>box(g,.06,.03,.06,'black',x,.19,z)));});
+P({name:'Input MCCB, SPD & EPO',area:A6,ex:[0,.15,.6],fn:'630 A input MCCB with shunt trip wired to the emergency power-off button, plus a Type 2 surge protective device.',spec:[['MCCB','630 A 3P, 50 kA'],['EPO','Guarded push button on door'],['SPD','Type 2, 4P']],
+ bom:[['PDU-06-01','Input MCCB 630 A 3P','B'],['PDU-06-02','EPO push button','B'],['PDU-06-03','SPD Type 2','B'],['PDU-06-04','Input terminals / lugs','B']]},
+ g=>{box(g,.21,.27,.12,'mccb',-.52,1.65,-.23,{e:1});box(g,.06,.08,.01,'black',-.52,1.66,-.165);box(g,.1,.09,.07,'white',-.24,1.65,-.26);
+  for(let i=0;i<3;i++)box(g,.03,.12,.01,'copper',-.6+i*.08,1.85,-.27);cyl(g,.03,.03,'red',-.62,1.5,.44,'z');cyl(g,.04,.01,'yellow',-.62,1.5,.425,'z');});
+P({name:'Output MCCB & busbars',area:A7,ex:[.3,.35,0],fn:'630 A output main MCCB feeding copper busbars with a 200 % rated neutral (for harmonic-rich IT loads), plus the neutral and earth bars.',spec:[['MCCB','630 A 4P, 36 kA'],['Busbars','Cu, neutral 200 %']],
+ bom:[['PDU-07-01','Output main MCCB 630 A 4P','B'],['PDU-07-02','Output busbar set','B'],['PDU-07-05','Neutral bar and earth bar','B']]},
+ g=>{box(g,.21,.25,.14,'mccb',.4,1.79,-.12,{e:1});box(g,.07,.09,.01,'black',.4,1.8,-.045);
+  ['R','Y','B','N'].forEach((k,i)=>box(g,.7,.035,.008,k,.4,1.66-i*.045,-.33));box(g,.6,.03,.01,'copper',.4,.17,-.3);box(g,1.5,.03,.006,'copper',0,.13,-.37);});
+P({name:'Panelboards & branch MCBs',area:A7,ex:[.25,0,.35],fn:'Four 42-way panelboards with 1-pole and 3-pole branch breakers feeding the rack PDUs (rPDUs) over branch cables.',spec:[['Panelboards','4 × 42-way, 250 A'],['Branch MCBs','≈ 120, 16–63 A, 10 kA (assumed)']],
+ bom:[['PDU-07-03','Panelboard interior, 42-way','B'],['PDU-07-04','Branch MCBs 1P / 3P','B']]},
+ g=>{PB.forEach(([x,y])=>{for(let k=0;k<3;k++)box(g,.012,.56,.006,'copper',x-.012+k*.012,y,-.2);
+  for(let c=-1;c<=1;c+=2)for(let i=0;i<12;i++)box(g,.12,.038,.06,'white',x+c*.08,y-.25+i*.045,-.15);});});
+P({name:'Branch circuit monitoring CT strips',area:A8,ex:[.25,.15,.55],fn:'CT strips beside each breaker column measure the current of every branch circuit for capacity planning and alarms.',spec:[['Strips','4 × 42 CTs'],['Output','To PDU monitoring controller']],
+ bom:[['PDU-08-02','Branch circuit monitoring CT strips','B']]},
+ g=>{PB.forEach(([x,y])=>{box(g,.02,.56,.03,'black',x-.155,y,-.13);box(g,.02,.56,.03,'black',x+.155,y,-.13);});});
+P({name:'Touchscreen, meters & controls',area:A8,ex:[0,0,1.75],fn:'Door-mounted touchscreen of the PDU monitoring controller and input / output power meters; communicates with the BMS / EPMS.',spec:[['HMI','7-in touchscreen'],['Comms','Modbus TCP / SNMP'],['Meters','Input and output, Cl 0.5S']],
+ bom:[['PDU-08-01','PDU monitoring controller + touchscreen','B'],['PDU-08-03','Input and output power meters','B'],['PDU-08-04','Control MCBs, relays, 24 V PSU','B'],['PDU-08-05','Temperature and door sensors','B']]},
+ g=>{box(g,.22,.15,.03,'black',-.4,1.6,.43);box(g,.18,.11,.004,'lcd',-.4,1.6,.447);[-.52,-.28].forEach(x=>{box(g,.096,.096,.04,'black',x,1.35,.43);box(g,.07,.045,.004,'lcd',x,1.36,.452);});});
+P({name:'Roof exhaust fans',area:A9,ex:[0,1.0,0],fn:'Thermostat-controlled roof fans that pull hot air out of the transformer section; filtered intake through the doors.',spec:[['Fans','4 × 230 V AC'],['Control','Thermostat']],
+ bom:[['PDU-09-01','Roof exhaust fans','B'],['PDU-09-02','Fan thermostat','B'],['PDU-09-03','Air filters','B']]},
+ g=>{[[-.6,-.2],[-.2,-.2],[-.6,.2],[-.2,.2]].forEach(([x,z])=>{cyl(g,.085,.05,'steelDark',x,2.055,z);for(let i=0;i<5;i++)box(g,.14,.004,.025,'black',x,2.083,z,{ry:i*Math.PI/5});});});
+P({name:'Wooden pallet',area:A12,ex:[0,-1.0,0],fn:'Heat-treated pallet and wrapping for transport.',spec:[['Material','Heat-treated timber']],bom:[['PDU-12-01','Wooden pallet / skid','C'],['PDU-12-02','Foam corners, PE wrap','C']]},
+ g=>{[-.3,0,.3].forEach(z=>box(g,1.7,.08,.1,'epoxy',0,-.08,z));[-.7,0,.7].forEach(x=>box(g,.12,.03,.9,'epoxy',x,-.135,0));});
+})();
+
+/* ================= RPP / PDC: dual-input remote power panel ================= */
+(function(){
+const m=newModel('rpp',{title:'PDC - RPPv3 remote power panel',
+ rating:'Dual input 2 × 400 A · 2 × 42-way panelboards (A front, B rear) · branch monitoring (assumed)',
+ size:'≈ 800 W × 600 D × 2000 H mm (assumed from 0.8 × 0.6 m layout bays)',
+ overview:'Remote power panel placed at the end of rack rows. Feed A and feed B each have a main MCCB and a 42-way panelboard, front and rear, with branch-circuit monitoring. Item codes match the RPP-PDC sheet (RPP-01 … RPP-10). The client price of ₹1.6 Cr per unit suggests a larger scope, so the definition (A-17) must be confirmed with GScale.',
+ scale:[1,1,1],target:new THREE.Vector3(0,1.0,0),dir:new THREE.Vector3(.6,.32,.74),dist:5.2});
+const P=(d,f)=>addPart(m,d,f);
+const A1='RPP-01 · Base frame & skeleton',A2='RPP-02 · Enclosure covers',A3='RPP-03 · Doors & door hardware',A4='RPP-04 · Mounting plates & cable management',A5='RPP-05 · Input',A6='RPP-06 · Distribution',A7='RPP-07 · Monitoring & control',A8='RPP-08 · Wiring & accessories',A10='RPP-10 · Packing';
+function slots(g,cx,cy,z,w,h,n){for(let i=0;i<n;i++)box(g,w,.012,.004,'fascia',cx,cy-h/2+(i+.5)*h/n,z);}
+function board(g,sz){const z=sz*.1;['R','Y','B','N'].forEach((k,i)=>box(g,.012,1.18,.006,k,-.018+i*.012,.95,sz*.05));
+ for(let c=-1;c<=1;c+=2)for(let i=0;i<21;i++)box(g,.12,.042,.06,'white',c*.1,.38+i*.055,z);}
+P({name:'Base frame & skeleton',area:A1,ex:[0,-.5,0],fn:'Channel base, four uprights and members; levelling feet and lifting eyes.',spec:[['Material','CRCA 3.0 / 2.5 mm']],
+ bom:[['RPP-01-01','Base frame','M'],['RPP-01-02','Vertical uprights','M'],['RPP-01-03','Horizontal members','M'],['RPP-01-04','Levelling feet','B'],['RPP-01-05','Lifting eye bolts','B']]},
+ g=>{box(g,.8,.1,.06,'galv',0,.05,.27,{e:1});box(g,.8,.1,.06,'galv',0,.05,-.27,{e:1});[-.37,.37].forEach(x=>box(g,.06,.1,.48,'galv',x,.05,0,{e:1}));
+  [-.38,.38].forEach(x=>[-.28,.28].forEach(z=>box(g,.04,1.88,.04,'steelDark',x,1.04,z)));[[-.35,-.25],[.35,-.25],[-.35,.25],[.35,.25]].forEach(a=>cyl(g,.03,.03,'black',a[0],-.015,a[1]));});
+P({name:'Side sheet, LH',area:A2,enclosure:true,ex:[-.7,0,0],fn:'Left side cover.',spec:[['Material','CRCA 1.6 mm']],bom:[['RPP-02-01','Side sheets','M']]},g=>{box(g,.02,1.9,.6,'steel',-.4,1.05,0,{e:1});});
+P({name:'Side sheet, RH',area:A2,enclosure:true,ex:[.7,0,0],fn:'Right side cover.',spec:[['Material','CRCA 1.6 mm']],bom:[['RPP-02-01','Side sheets','M']]},g=>{box(g,.02,1.9,.6,'steel',.4,1.05,0,{e:1});});
+P({name:'Roof with top cable entry',area:A2,enclosure:true,ex:[0,.6,0],fn:'Roof with cutouts for overhead cable entry from the ladder trays above the rack rows; plinth covers at the base.',spec:[['Roof','CRCA 2.0 mm'],['Plinth','CRCA 1.6 mm']],
+ bom:[['RPP-02-02','Roof with top cable entry','M'],['RPP-02-03','Plinth covers','M']]},
+ g=>{box(g,.8,.03,.6,'steel',0,2.015,0,{e:1});[-.15,.15].forEach(z=>box(g,.3,.004,.2,'fascia',0,2.032,z));[[-.33,-.23],[.33,-.23],[-.33,.23],[.33,.23]].forEach(a=>cyl(g,.015,.05,'galv',a[0],2.055,a[1]));});
+P({name:'Front door, perforated (feed A)',area:A3,enclosure:true,ex:[0,0,1.05],fn:'Perforated front door on the feed-A side.',spec:[['Material','CRCA 2.0 mm, perforated'],['Hardware','Hinges, lock, earthing braid']],
+ bom:[['RPP-03-01','Front door, perforated','M'],['RPP-03-04','Door stiffeners','M'],['RPP-03-05','Hinges','B'],['RPP-03-06','Door locks','B'],['RPP-03-07','Door earthing braid','B']]},
+ g=>{box(g,.78,1.88,.02,'steel',0,1.05,.31,{e:1});slots(g,0,.8,.322,.6,1.0,16);box(g,.025,.18,.03,'black',.33,1.05,.335);});
+P({name:'Rear door, perforated (feed B)',area:A3,enclosure:true,ex:[0,0,-1.05],fn:'Perforated rear door on the feed-B side.',spec:[['Material','CRCA 2.0 mm, perforated']],bom:[['RPP-03-02','Rear door, perforated','M']]},
+ g=>{box(g,.78,1.88,.02,'steel',0,1.05,-.31,{e:1});slots(g,0,.8,-.322,.6,1.0,16);box(g,.025,.18,.03,'black',-.33,1.05,-.335);});
+P({name:'Dead-front cover A',area:A3,ex:[0,0,.7],fn:'Inner cover over panelboard A with slots for breaker toggles.',spec:[['Material','CRCA 1.6 mm']],bom:[['RPP-03-03','Panelboard dead-front covers','M']]},
+ g=>{box(g,.6,1.25,.012,'steel',0,.95,.22,{e:1});[-.1,.1].forEach(x=>box(g,.05,1.18,.003,'fascia',x,.95,.227));});
+P({name:'Dead-front cover B',area:A3,ex:[0,0,-.7],fn:'Inner cover over panelboard B.',spec:[['Material','CRCA 1.6 mm']],bom:[['RPP-03-03','Panelboard dead-front covers','M']]},
+ g=>{box(g,.6,1.25,.012,'steel',0,.95,-.22,{e:1});[-.1,.1].forEach(x=>box(g,.05,1.18,.003,'fascia',x,.95,-.227));});
+P({name:'Mounting pans & cable brackets',area:A4,ex:[0,0,0],fn:'Back-to-back panelboard mounting pans, main MCCB plates and side cable brackets that route branch cables up to the roof.',spec:[['Pans','GI 2.0 mm'],['MCCB plates','GI 2.5 mm']],
+ bom:[['RPP-04-01','Panelboard mounting pans','M'],['RPP-04-02','Main MCCB mounting plates','M'],['RPP-04-04','Cable trough / brackets','M']]},
+ g=>{box(g,.62,1.3,.012,'galv',0,.95,.0);box(g,.3,.28,.012,'galv',0,1.76,.04);box(g,.3,.28,.012,'galv',0,1.76,-.04);[-.34,.34].forEach(x=>[-.13,.13].forEach(z=>box(g,.04,1.6,.06,'galv',x,1.05,z)));});
+P({name:'Top gland plates',area:A4,ex:[0,.95,0],fn:'Removable aluminium gland plates for top cable entry.',spec:[['Material','Al 3.0 mm']],bom:[['RPP-04-03','Top gland plates','M']]},g=>{[-.15,.15].forEach(z=>box(g,.32,.012,.22,'alu',0,1.985,z,{e:1}));});
+P({name:'Main MCCBs A & B, SPDs',area:A5,ex:[.45,.25,0],fn:'One 400 A main MCCB per feed (A front, B rear) with input lugs and Type 2 surge protection.',spec:[['MCCB','2 × 400 A 4P, 36 kA'],['SPD','2 × Type 2']],
+ bom:[['RPP-05-01','Main MCCB 400 A 4P','B'],['RPP-05-02','Input lugs / terminals','B'],['RPP-05-03','SPD Type 2','B']]},
+ g=>{[1,-1].forEach(s=>{box(g,.14,.25,.1,'mccb',0,1.76,s*.1,{e:1});box(g,.05,.08,.01,'black',0,1.77,s*.155);box(g,.08,.08,.06,'white',.22,1.76,s*.09);});});
+P({name:'Panelboard A + branch MCBs',area:A6,ex:[0,0,.42],fn:'42-way panelboard on feed A with its copper bus and branch breakers feeding rack PDUs.',spec:[['Panelboard','42-way, 400 A Cu bus'],['Branch MCBs','≈ 42 per side, 16–63 A (assumed)']],
+ bom:[['RPP-06-01','Panelboard interior, 42-way','B'],['RPP-06-02','Branch MCBs 1P / 3P','B']]},g=>{board(g,1);});
+P({name:'Panelboard B + branch MCBs',area:A6,ex:[0,0,-.42],fn:'Same as panelboard A, on feed B for the second power path to each rack.',spec:[['Panelboard','42-way, 400 A Cu bus']],
+ bom:[['RPP-06-01','Panelboard interior, 42-way','B'],['RPP-06-02','Branch MCBs 1P / 3P','B']]},g=>{board(g,-1);});
+P({name:'Neutral & earth bars',area:A6,ex:[0,-.3,0],fn:'Neutral bar per panelboard and a common earth bar at the base.',spec:[['Material','EC-grade Cu']],bom:[['RPP-06-03','Neutral bars','B'],['RPP-06-04','Earth bar','B']]},
+ g=>{box(g,.5,.03,.01,'copper',0,.28,.06);box(g,.5,.03,.01,'copper',0,.28,-.06);box(g,.66,.03,.006,'copper',0,.14,0);});
+P({name:'Branch monitoring CT strips',area:A7,ex:[.4,0,0],fn:'CT strips alongside each breaker column measure every branch circuit.',spec:[['Strips','4 × 21 CTs']],bom:[['RPP-07-01','Branch circuit monitoring CT strips','B']]},
+ g=>{[1,-1].forEach(s=>[-.175,.175].forEach(x=>box(g,.02,1.16,.03,'black',x,.95,s*.1)));});
+P({name:'Meters & monitoring display',area:A7,ex:[0,0,1.35],fn:'Door-mounted power meter per feed and the monitoring gateway display; data goes to the BMS / EPMS.',spec:[['Meters','2 × Cl 0.5S'],['Gateway','Modbus TCP / SNMP']],
+ bom:[['RPP-07-02','Power meters','B'],['RPP-07-03','Monitoring gateway with display','B'],['RPP-07-04','Control MCBs and 24 V PSU','B']]},
+ g=>{box(g,.096,.096,.04,'black',-.18,1.72,.33);box(g,.07,.045,.004,'lcd',-.18,1.73,.352);box(g,.16,.1,.02,'black',.1,1.72,.33);box(g,.13,.07,.004,'lcd',.1,1.72,.342);});
+P({name:'Control wiring & terminals',area:A8,ex:[-.4,0,0],fn:'Control wiring for meters and CT strips with terminal blocks and duct.',spec:[['Wire','1.5 mm² Cu FRLS']],bom:[['RPP-08-01','Control wire','C'],['RPP-08-02','Terminal blocks','B'],['RPP-08-03','Lugs, ferrules, ties','C']]},
+ g=>{[1,-1].forEach(s=>{box(g,.04,1.3,.04,'duct',-.27,1.0,s*.06);for(let i=0;i<12;i++)box(g,.04,.006,.04,'tb',-.27,1.68+i*.01,s*.06);});});
+P({name:'Wooden pallet',area:A10,ex:[0,-.9,0],fn:'Heat-treated pallet and wrapping for transport.',spec:[['Material','Heat-treated timber']],bom:[['RPP-10-01','Wooden pallet','C'],['RPP-10-02','Foam corners, PE wrap','C']]},
+ g=>{[-.22,0,.22].forEach(z=>box(g,.9,.08,.1,'epoxy',0,-.08,z));[-.35,0,.35].forEach(x=>box(g,.12,.03,.7,'epoxy',x,-.135,0));});
+})();
+
+/* ================= JINNARAM products (generated) ================= */
+(function(){
+const m=newModel("lbd",{title:"LV sandwich busduct",rating:"Sandwich type, Cu or Al, 4000 A, 4-bar + housing earth (assumed)",size:"3 m length · ≈ 150 W × 320 H mm housing (assumed)",overview:"Low-voltage sandwich busduct that carries power from the LV switchboard to the data-hall PDUs and RPPs. Shown as one 3 m straight length with joint pack, end cap, tap-off box and hangers. Client quantity: 70,000 Mtr per 1 GW (no year-wise split in client file). BOM codes LBD-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.0,0),dir:new THREE.Vector3(0.55,0.35,0.75),dist:5.2,site:'jin',tab:"LV busduct"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Housing side plates",area:"LBD-01 · Housing side plates",enclosure:true,ex:[0, 0, 0.55],fn:"Two side plates that, with the covers, form the earthed housing.",spec:[["Material", "GI / CRCA 1.6–2.0 mm or Al extrusion"]],bom:[["LBD-01-01", "Housing side plate, 3 m", "M"]]},g=>{box(g,3,.32,.005,'alu',0,1,.078,{e:1});box(g,3,.32,.005,'alu',0,1,-.078,{e:1});});
+P({name:"Top & bottom covers",area:"LBD-02 · Top & bottom covers",enclosure:true,ex:[0, 0.45, 0],fn:"Top and bottom covers closing the housing.",spec:[["Material", "GI 1.6 mm"]],bom:[["LBD-02-01", "Housing cover, 3 m", "M"]]},g=>{box(g,3,.005,.16,'alu',0,1.163,0);box(g,3,.005,.16,'alu',0,.837,0);});
+P({name:"Insulated conductors R-Y-B-N",area:"LBD-03 · Insulated conductors R-Y-B-N",ex:[0, 0, 0],fn:"Four flat conductors stacked tightly (sandwich) with insulation film or epoxy coating between them.",spec:[["Conductor", "Cu or Al flats, 4 per length"], ["Insulation", "Class B/F film or epoxy coating"]],bom:[["LBD-03-01", "Conductor flat, 3 m (R, Y, B, N)", "B"], ["LBD-03-02", "Insulation film / epoxy powder", "C"]]},g=>{['R','Y','B','N'].forEach((k,i)=>{box(g,3,.25,.012,k,0,1,-.03+i*.02);box(g,.1,.25,.012,'copper',1.56,1,-.03+i*.02);});});
+P({name:"Joint pack",area:"LBD-04 · Joint pack",ex:[0.6, 0, 0],fn:"Bolted joint that connects one length to the next; one per length.",spec:[["Type", "Single-bolt, torque-indicating (assumed)"]],bom:[["LBD-04-01", "Joint pack", "B"]]},g=>{box(g,.16,.36,.2,'steelDark',1.6,1,0,{e:1});cyl(g,.03,.04,'black',1.6,1.2,0,'y');});
+P({name:"End cap",area:"LBD-05 · End cap",ex:[-0.6, 0, 0],fn:"Closes the last length of a run.",spec:[["Material", "GI 2.0 mm"]],bom:[["LBD-05-01", "End cap", "M"]]},g=>{box(g,.03,.34,.17,'alu',-1.515,1,0,{e:1});});
+P({name:"Plug-in tap-off box",area:"LBD-06 · Plug-in tap-off box",ex:[0, 0, 0.9],fn:"Tap-off box with MCCB that plugs onto the busduct to feed a PDU or RPP.",spec:[["MCCB", "Up to 630 A (assumed)"], ["Share", "1 per 4 lengths (assumed)"]],bom:[["LBD-06-01", "Tap-off box enclosure", "M"], ["LBD-06-02", "MCCB for tap-off", "B"]]},g=>{box(g,.4,.45,.3,'steel',.4,1,.3,{e:1});box(g,.06,.12,.02,'black',.4,1,.46);});
+P({name:"Hangers",area:"LBD-07 · Hangers",ex:[0, 0.8, 0],fn:"Spring hangers on threaded rods from the slab or a C-strut frame.",spec:[["Spacing", "≈ 1.5 m (assumed)"]],bom:[["LBD-07-01", "Hanger bracket set", "B"]]},g=>{[-1,1].forEach(x=>{cyl(g,.006,.8,'galv',x,1.6,0,'y');box(g,.08,.02,.2,'galv',x,1.175,0);});});
+})();
+(function(){
+const m=newModel("mbd",{title:"MV air-insulated busduct",rating:"33 kV, air-insulated, Al conductors, 2500 A (assumed)",size:"3 m length · ≈ 700 W × 500 H mm enclosure (assumed)",overview:"Air-insulated MV busduct linking transformers and MV switchgear. Shown as one 3 m straight length. Client Plot-1 data: about 25 support insulators per metre. Client quantity: Year-5 1,316 Mtr (1 GW: 5,263). BOM codes MBD-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.0,0),dir:new THREE.Vector3(0.55,0.38,0.75),dist:5.5,site:'jin',tab:"MV busduct"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Enclosure side sheets",area:"MBD-01 · Enclosure side sheets",enclosure:true,ex:[0, 0, 0.7],fn:"Side sheets of the earthed enclosure.",spec:[["Material", "GI / CRCA 2.0 mm or Al"]],bom:[["MBD-01-01", "Enclosure side sheet, 3 m", "M"]]},g=>{box(g,3,.5,.006,'alu',0,1,.35,{e:1});box(g,3,.5,.006,'alu',0,1,-.35,{e:1});});
+P({name:"Top & bottom covers",area:"MBD-02 · Top & bottom covers",enclosure:true,ex:[0, 0.55, 0],fn:"Covers with breather and heater access.",spec:[["Material", "GI 2.0 mm"]],bom:[["MBD-02-01", "Enclosure cover, 3 m", "M"]]},g=>{box(g,3,.006,.7,'alu',0,1.25,0,{e:1});box(g,3,.006,.7,'alu',0,.75,0,{e:1});});
+P({name:"Aluminium conductors",area:"MBD-03 · Aluminium conductors",ex:[0, 0.25, 0],fn:"Three phase conductors in air.",spec:[["Conductor", "Al tube or flat, 2500 A (assumed)"]],bom:[["MBD-03-01", "Al conductor, 3 m", "B"]]},g=>{[-.2,0,.2].forEach(z=>cyl(g,.04,3,'alu',0,1.02,z,'x'));});
+P({name:"Support insulators",area:"MBD-04 · Support insulators",ex:[0, -0.3, 0],fn:"Epoxy post insulators that hold the conductors.",spec:[["Qty", "≈ 25 per metre (client Plot-1)"]],bom:[["MBD-04-01", "Support insulator, 36 kV", "B"]]},g=>{[-1.2,0,1.2].forEach(x=>[-.2,0,.2].forEach(z=>cyl(g,.028,.22,'insul',x,.87,z)));});
+P({name:"Joint kit & flexible link",area:"MBD-05 · Joint kit & flexible link",ex:[0.7, 0, 0],fn:"Bolted joint with flexible link to absorb expansion.",spec:[["Type", "Bolted, with flexible braid"]],bom:[["MBD-05-01", "Joint kit (3 phase)", "B"]]},g=>{box(g,.2,.55,.75,'steelDark',1.6,1,0,{e:1});});
+P({name:"Space heater",area:"MBD-06 · Space heater",ex:[0, -0.6, 0],fn:"Anti-condensation heater inside the enclosure.",spec:[["Rating", "100 W, 240 V"]],bom:[["MBD-06-01", "Space heater + thermostat", "B"]]},g=>{box(g,.3,.04,.08,'alu',-.8,.79,0);});
+})();
+(function(){
+const m=newModel("css",{title:"Compact substation",rating:"33/0.433 kV, 2.5 MVA (assumed) · RMU + transformer + LV board",size:"≈ 4.5 L × 2.5 W × 2.6 H m (assumed)",overview:"Outdoor compact (package) substation: MV ring main unit, oil-filled transformer and LV switchboard in one steel enclosure. Client quantity: Year-5 147 Nos (1 GW: 737). BOM codes CSS-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.2,0),dir:new THREE.Vector3(0.6,0.42,0.7),dist:11,site:'jin',tab:"Compact substation"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Base skid & oil bund",area:"CSS-01 · Base skid & oil bund",ex:[0, -0.7, 0],fn:"Welded base frame with oil-containment bund under the transformer.",spec:[["Material", "Steel sections, 3–5 mm plate"]],bom:[["CSS-01-01", "Base skid", "M"], ["CSS-01-02", "Oil bund tray", "M"]]},g=>{box(g,4.5,.15,2.5,'steelDark',0,.075,0,{e:1});box(g,1.8,.1,1.4,'steelDark',0,.2,0,{e:1});});
+P({name:"Enclosure walls",area:"CSS-02 · Enclosure walls",enclosure:true,ex:[0, 0, 1.6],fn:"Side and end walls with ventilation louvres.",spec:[["Material", "GI 2.0 mm, powder coated"]],bom:[["CSS-02-01", "Wall panels", "M"], ["CSS-02-02", "Ventilation louvres", "M"]]},g=>{box(g,4.5,2.3,.02,'steel',0,1.3,-1.25,{e:1});box(g,.02,2.3,2.5,'steel',-2.25,1.3,0,{e:1});box(g,.02,2.3,2.5,'steel',2.25,1.3,0,{e:1});});
+P({name:"Roof",area:"CSS-03 · Roof",enclosure:true,ex:[0, 1.1, 0],fn:"Sloped roof with lifting points.",spec:[["Material", "GI 2.0 mm"]],bom:[["CSS-03-01", "Roof", "M"]]},g=>{box(g,4.6,.05,2.6,'steel',0,2.475,0,{e:1});});
+P({name:"Doors",area:"CSS-04 · Doors",enclosure:true,ex:[0, 0, 2.3],fn:"Front doors for MV, transformer and LV compartments.",spec:[["Material", "GI 2.0 mm"], ["Hardware", "Hinges, locks, gaskets"]],bom:[["CSS-04-01", "Door", "M"], ["CSS-04-02", "Door hardware set", "B"]]},g=>{[-1.65,-.55,.55,1.65].forEach(x=>{box(g,1.05,2.2,.02,'steel',x,1.3,1.26,{e:1});box(g,.03,.15,.03,'black',x+.4,1.3,1.28);});});
+P({name:"Internal partitions",area:"CSS-05 · Internal partitions",enclosure:true,ex:[0, 0.0, -1.4],fn:"Separate MV, transformer and LV compartments.",spec:[["Material", "GI 2.0 mm"]],bom:[["CSS-05-01", "Partition", "M"]]},g=>{box(g,.02,2.3,2.48,'galv',-1.05,1.3,0);box(g,.02,2.3,2.48,'galv',1.05,1.3,0);});
+P({name:"MV ring main unit",area:"CSS-06 · MV ring main unit",ex:[-1.2, 0, 0],fn:"33 kV SF6-free ring main unit with two ring switches and a breaker for the transformer.",spec:[["Type", "RMU 2 × ring + 1 × VCB (assumed)"]],bom:[["CSS-06-01", "RMU 36 kV", "B"]]},g=>{box(g,.9,1.7,.8,'steel',-1.65,1.05,-.2,{e:1});box(g,.8,.5,.02,'fascia',-1.65,1.4,.21);});
+P({name:"Transformer 2.5 MVA",area:"CSS-07 · Transformer 2.5 MVA",ex:[0, 0.6, 0],fn:"Oil-filled ONAN distribution transformer with radiators.",spec:[["Rating", "2.5 MVA, 33/0.433 kV, Dyn11 (assumed)"]],bom:[["CSS-07-01", "Distribution transformer", "B"]]},g=>{box(g,1.3,1.3,.9,'steelDark',0,.95,0,{e:1});for(let i=0;i<8;i++){box(g,.04,1.0,.3,'steelDark',-.5+i*.14,.95,.6);box(g,.04,1.0,.3,'steelDark',-.5+i*.14,.95,-.6);}[-.3,0,.3].forEach(x=>cyl(g,.04,.25,'polymer',x,1.72,0));});
+P({name:"LV switchboard",area:"CSS-08 · LV switchboard",ex:[1.2, 0, 0],fn:"LV board with ACB incomer and outgoing feeders (can come from the Box-3 LV line).",spec:[["Rating", "4000 A ACB + feeders (assumed)"]],bom:[["CSS-08-01", "LV switchboard", "B"]]},g=>{box(g,.9,2.0,.8,'steel',1.65,1.15,-.2,{e:1});box(g,.3,.3,.02,'fascia',1.65,1.5,.21);});
+P({name:"Earthing & cabling",area:"CSS-09 · Earthing & cabling",ex:[0, -0.35, 0],fn:"Earth bar, MV and LV interconnecting cables.",spec:[["Cables", "XLPE, per rating"]],bom:[["CSS-09-01", "Earth bar and straps", "B"], ["CSS-09-02", "MV / LV interconnecting cables", "B"]]},g=>{box(g,4.2,.04,.01,'copper',0,.3,-1.2);cyl(g,.04,2.0,'cable',-.6,.5,-.8,'x');});
+})();
+(function(){
+const m=newModel("cdu",{title:"Coolant distribution unit (CDU)",rating:"Liquid-to-liquid, ≈ 1 MW (assumed) · 1 plate heat exchanger + 2 pumps (client Plot-2)",size:"≈ 1.2 W × 1.2 D × 2.0 H m (assumed)",overview:"CDU between the facility water and the Secondary Fluid Network: a plate heat exchanger, two redundant pumps, filters, valves and controls. Client Plot-2 gives about 550 kg of bought components per unit. Client quantity: Year-5 341 Nos (1 GW: 1,705). BOM codes CDU-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.0,0),dir:new THREE.Vector3(0.6,0.35,0.72),dist:6,site:'jin',tab:"CDU"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Frame & panels",area:"CDU-01 · Frame & panels",enclosure:true,ex:[0, 0, -0.8],fn:"Welded frame with side and rear panels.",spec:[["Material", "CRCA / GI 2.0 mm, frame 3 mm"]],bom:[["CDU-01-01", "Frame", "M"], ["CDU-01-02", "Side and rear panels", "M"]]},g=>{[-.58,.58].forEach(x=>[-.58,.58].forEach(z=>box(g,.04,2,.04,'steelDark',x,1,z)));box(g,1.2,.02,1.2,'steelDark',0,.05,0);box(g,1.2,1.96,.02,'steel',0,1,-.6,{e:1});box(g,.02,1.96,1.2,'steel',-.6,1,0,{e:1});box(g,.02,1.96,1.2,'steel',.6,1,0,{e:1});});
+P({name:"Front doors",area:"CDU-02 · Front doors",enclosure:true,ex:[0, 0, 1.0],fn:"Front access doors.",spec:[["Material", "GI 2.0 mm"]],bom:[["CDU-02-01", "Front door", "M"], ["CDU-02-02", "Door hardware set", "B"]]},g=>{[-.3,.3].forEach(x=>box(g,.59,1.96,.02,'steel',x,1,.61,{e:1}));});
+P({name:"Plate heat exchanger",area:"CDU-03 · Plate heat exchanger",ex:[-0.5, 0.3, 0],fn:"Transfers heat from the SFN loop to facility water.",spec:[["Type", "Gasketed PHE, SS 316 plates"]],bom:[["CDU-03-01", "Plate heat exchanger", "B"]]},g=>{box(g,.3,1.0,.32,'ss',-.3,1.1,-.1,{e:1});box(g,.34,1.05,.04,'blue',-.3,1.1,-.28);box(g,.34,1.05,.04,'blue',-.3,1.1,.08);});
+P({name:"Pumps (2 × redundant)",area:"CDU-04 · Pumps (2 × redundant)",ex:[0.5, -0.2, 0.3],fn:"Two redundant variable-speed pumps (client: 2 per unit).",spec:[["Type", "In-line, EC / VFD driven"]],bom:[["CDU-04-01", "Pump with motor", "B"]]},g=>{[.15,.4].forEach(x=>{cyl(g,.09,.35,'blue',x,.35,.2,'y');cyl(g,.07,.25,'steelDark',x,.65,.2,'y');});});
+P({name:"Manifolds & piping",area:"CDU-05 · Manifolds & piping",ex:[0, 0.4, 0.5],fn:"Supply and return headers and interconnecting pipework.",spec:[["Material", "SS 304L / 316L"]],bom:[["CDU-05-01", "Piping & manifold set", "B"]]},g=>{cyl(g,.05,1.0,'ss',0,1.75,.25,'x');cyl(g,.05,1.0,'ss',0,1.6,.25,'x');cyl(g,.04,1.3,'ss',.15,1.05,.25,'y');cyl(g,.04,1.3,'ss',.4,1.05,.25,'y');});
+P({name:"Valves, filters & expansion tank",area:"CDU-06 · Valves, filters & expansion tank",ex:[0.5, 0.5, -0.3],fn:"Isolation and control valves, strainers and an expansion vessel.",spec:[["Valves", "Butterfly / ball, 2-way control"]],bom:[["CDU-06-01", "Valve set", "B"], ["CDU-06-02", "Strainer / filter", "B"], ["CDU-06-03", "Expansion tank", "B"]]},g=>{cyl(g,.12,.4,'red',.35,1.5,-.3,'y');[-.05,.25].forEach(x=>box(g,.1,.1,.1,'red',x,1.75,.4));});
+P({name:"Control panel & sensors",area:"CDU-07 · Control panel & sensors",ex:[0, 0, 1.4],fn:"PLC control panel with VFDs, flow, pressure, temperature and leak sensors.",spec:[["Comms", "Modbus / BACnet to BMS"]],bom:[["CDU-07-01", "Control panel with PLC & VFDs", "B"], ["CDU-07-02", "Sensor set", "B"]]},g=>{box(g,.35,.25,.02,'fascia',.3,1.55,.625);box(g,.2,.12,.004,'lcd',.3,1.57,.637);});
+P({name:"Drip tray & leak detection",area:"CDU-08 · Drip tray & leak detection",ex:[0, -0.4, 0],fn:"Stainless drip tray with leak detection cable.",spec:[["Material", "SS 1.5 mm"]],bom:[["CDU-08-01", "Drip tray", "M"]]},g=>{box(g,1.12,.04,1.12,'ss',0,.08,0,{e:1});});
+})();
+(function(){
+const m=newModel("fwu",{title:"Fan wall unit (FWU)",rating:"8 EC fans per unit (client Plot-2) · chilled-water coil",size:"≈ 2.4 W × 0.9 D × 3.0 H m (assumed)",overview:"Fan wall unit that cools the data hall air: a bank of EC fans pulling air through filters and a chilled-water coil. Client Plot-2: 8 EC fans and one set of filters, controls and electricals per unit. Client quantity: Year-5 189 Nos (1 GW: 947). BOM codes FWU-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.5,0),dir:new THREE.Vector3(0.6,0.3,0.75),dist:8,site:'jin',tab:"Fan wall unit"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Frame & casing",area:"FWU-01 · Frame & casing",enclosure:true,ex:[0, 0, -0.9],fn:"Frame and casing panels.",spec:[["Material", "GI 1.6–2.0 mm, Al option"]],bom:[["FWU-01-01", "Frame", "M"], ["FWU-01-02", "Casing panels", "M"]]},g=>{box(g,2.4,3,.02,'steel',0,1.5,-.45,{e:1});box(g,.02,3,.9,'steel',-1.2,1.5,0,{e:1});box(g,.02,3,.9,'steel',1.2,1.5,0,{e:1});box(g,2.4,.02,.9,'steel',0,3,0,{e:1});});
+P({name:"EC fans (8)",area:"FWU-02 · EC fans (8)",ex:[0, 0, 1.0],fn:"Eight EC plug fans with guards.",spec:[["Qty", "8 per unit (client)"]],bom:[["FWU-02-01", "EC fan with motor", "B"]]},g=>{for(let c=0;c<2;c++)for(let r=0;r<4;r++){cyl(g,.26,.12,'fascia',-.55+c*1.1,.5+r*.68,.38,'z');cyl(g,.07,.14,'black',-.55+c*1.1,.5+r*.68,.38,'z');}});
+P({name:"Fan support panel",area:"FWU-03 · Fan support panel",ex:[0, 0, 0.5],fn:"Panel the fans are mounted on.",spec:[["Material", "GI 2.0 mm"]],bom:[["FWU-03-01", "Fan mounting panel", "M"]]},g=>{box(g,2.36,2.9,.02,'galv',0,1.5,.3);});
+P({name:"Chilled-water coil",area:"FWU-04 · Chilled-water coil",ex:[0, 0, -0.4],fn:"Cu/Al coil connected to the chilled-water system.",spec:[["Type", "Cu tube / Al fin"]],bom:[["FWU-04-01", "Cooling coil", "B"]]},g=>{box(g,2.3,2.8,.15,'copper',0,1.5,-.15,{e:1});});
+P({name:"Filters",area:"FWU-05 · Filters",ex:[0, 0, -1.2],fn:"Air filters upstream of the coil.",spec:[["Grade", "ISO ePM10 / G4 (assumed)"]],bom:[["FWU-05-01", "Filter set", "B"]]},g=>{box(g,2.3,2.8,.05,'white',0,1.5,-.32);});
+P({name:"Drain pan",area:"FWU-06 · Drain pan",ex:[0, -0.5, 0],fn:"Stainless condensate drain pan.",spec:[["Material", "SS 1.2 mm"]],bom:[["FWU-06-01", "Drain pan", "M"]]},g=>{box(g,2.36,.06,.86,'ss',0,.05,0,{e:1});});
+P({name:"Control panel",area:"FWU-07 · Control panel",ex:[1.4, 0, 0],fn:"Fan speed and coil valve control.",spec:[["Comms", "Modbus / BACnet"]],bom:[["FWU-07-01", "Control panel", "B"]]},g=>{box(g,.06,.5,.35,'fascia',1.24,1.8,.2);});
+})();
+(function(){
+const m=newModel("pahu",{title:"Packaged air handling unit (PAHU)",rating:"3 EC fans per unit (client Plot-2) · coil, filters, dampers",size:"≈ 4.0 L × 1.4 W × 1.8 H m (assumed)",overview:"Packaged AHU for support spaces and make-up air: double-skin casing, chilled-water coil, three EC fans, filters and dampers. Client Plot-2: 3 EC fans and ~440 kg of components per unit. Client quantity: Year-5 253 Nos (1 GW: 1,263). BOM codes PAHU-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,0.9,0),dir:new THREE.Vector3(0.6,0.4,0.7),dist:7,site:'jin',tab:"PAHU"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Base frame",area:"PAHU-01 · Base frame",ex:[0, -0.5, 0],fn:"Base frame with lifting points.",spec:[["Material", "Steel channel"]],bom:[["PAHU-01-01", "Base frame", "M"]]},g=>{box(g,4,.12,1.4,'steelDark',0,.06,0,{e:1});});
+P({name:"Double-skin casing panels",area:"PAHU-02 · Double-skin casing panels",enclosure:true,ex:[0, 0, -1.2],fn:"Insulated double-skin panels.",spec:[["Skin", "GI 0.8 mm outer / inner"], ["Insulation", "PU or mineral wool 50 mm"]],bom:[["PAHU-02-01", "Casing panel (double skin)", "M"], ["PAHU-02-02", "Panel insulation", "B"]]},g=>{box(g,4,1.6,.05,'steel',0,.92,-.7,{e:1});box(g,4,.05,1.4,'steel',0,1.72,0,{e:1});box(g,.05,1.6,1.4,'steel',-2,.92,0,{e:1});box(g,.05,1.6,1.4,'steel',2,.92,0,{e:1});});
+P({name:"Access doors",area:"PAHU-03 · Access doors",enclosure:true,ex:[0, 0, 1.2],fn:"Hinged access doors for fan and filter sections.",spec:[["Material", "Double skin"]],bom:[["PAHU-03-01", "Access door", "M"], ["PAHU-03-02", "Door hardware set", "B"]]},g=>{[-1.3,0,1.3].forEach(x=>box(g,1.2,1.5,.05,'steel',x,.92,.7,{e:1}));});
+P({name:"Filter bank",area:"PAHU-04 · Filter bank",ex:[-0.6, 0.5, 0],fn:"Pre and fine filters.",spec:[["Grade", "G4 + F7 (assumed)"]],bom:[["PAHU-04-01", "Filter set", "B"]]},g=>{box(g,.1,1.4,1.2,'white',-1.6,.92,0);box(g,.1,1.4,1.2,'white',-1.4,.92,0);});
+P({name:"Chilled-water coil",area:"PAHU-05 · Chilled-water coil",ex:[0, 0.6, 0],fn:"Cooling coil with drain pan.",spec:[["Type", "Cu/Al"]],bom:[["PAHU-05-01", "Cooling coil", "B"], ["PAHU-05-02", "Drain pan", "M"]]},g=>{box(g,.25,1.3,1.2,'copper',-.5,.95,0,{e:1});box(g,.4,.05,1.25,'ss',-.5,.25,0);});
+P({name:"EC fans (3)",area:"PAHU-06 · EC fans (3)",ex:[0.6, 0.6, 0],fn:"Three EC plug fans.",spec:[["Qty", "3 per unit (client)"]],bom:[["PAHU-06-01", "EC plug fan", "B"]]},g=>{[-.35,0,.35].forEach(z=>{cyl(g,.22,.15,'fascia',.8,.95,z*1.2,'x');cyl(g,.06,.17,'black',.8,.95,z*1.2,'x');});});
+P({name:"Dampers & control panel",area:"PAHU-07 · Dampers & control panel",ex:[1.0, 0, 0],fn:"Motorised dampers and the unit controller.",spec:[["Actuators", "24 V modulating"]],bom:[["PAHU-07-01", "Damper with actuator", "B"], ["PAHU-07-02", "Control panel", "B"]]},g=>{box(g,.06,1.2,1.1,'galv',1.97,.92,0);box(g,.3,.4,.15,'fascia',1.5,1.95,-.4);});
+})();
+(function(){
+const m=newModel("cpp",{title:"Prefabricated chiller plant module",rating:"Pump and heat-exchanger skid, ≈ 3,000 TR per module (from client Plot-2)",size:"≈ 12 L × 3 W × 3 H m skid (assumed)",overview:"Prefabricated chiller-plant module: a steel skid carrying pumps, heat exchangers, headers and valves, built and tested in the factory. Client Plot-2: skid steel ≈ 6 t and equipment ≈ 9 t per module. Client quantity: Year-5 99,517 Tr (1 GW: 284,333). BOM codes CPP-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.2,0),dir:new THREE.Vector3(0.55,0.45,0.7),dist:20,site:'jin',tab:"Chiller plant skid"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Skid base frame",area:"CPP-01 · Skid base frame",ex:[0, -0.8, 0],fn:"Welded structural skid with lifting lugs (client: ≈ 6 t steel per module).",spec:[["Material", "Structural steel ISMB / ISMC"]],bom:[["CPP-01-01", "Skid frame", "M"]]},g=>{box(g,12,.3,3,'steelDark',0,.15,0,{e:1});for(let i=0;i<7;i++)box(g,.2,.3,3,'steelDark',-6+i*2,.15,0);});
+P({name:"Pumps",area:"CPP-02 · Pumps",ex:[0, 0, 1.6],fn:"Primary / secondary pumps with motors.",spec:[["Qty", "4 (assumed)"]],bom:[["CPP-02-01", "Pump set with motor", "B"]]},g=>{[-4.5,-2.5,-.5,1.5].forEach(x=>{box(g,1.2,.6,.6,'blue',x,.6,.8,{e:1});cyl(g,.25,.6,'blue',x+.4,.7,.8,'x');});});
+P({name:"Plate heat exchangers",area:"CPP-03 · Plate heat exchangers",ex:[0, 0.3, -1.6],fn:"Heat exchangers between chiller and secondary loops.",spec:[["Qty", "2 (assumed)"]],bom:[["CPP-03-01", "Plate heat exchanger", "B"]]},g=>{[3,4.8].forEach(x=>{box(g,1.0,1.8,.6,'ss',x,1.2,-.8,{e:1});box(g,1.05,1.85,.06,'blue',x,1.2,-1.1);});});
+P({name:"Headers & piping",area:"CPP-04 · Headers & piping",ex:[0, 1.0, 0],fn:"Supply / return headers and interconnecting pipework (could be made in the SFN shop).",spec:[["Material", "CS / SS per spec"]],bom:[["CPP-04-01", "Header pipe set", "B"]]},g=>{cyl(g,.18,11,'ss',0,2.2,.6,'x');cyl(g,.18,11,'ss',0,2.2,-.2,'x');[-4.5,-2.5,-.5,1.5].forEach(x=>cyl(g,.08,1.4,'ss',x,1.5,.6,'y'));});
+P({name:"Valves & strainers",area:"CPP-05 · Valves & strainers",ex:[0, 1.4, 0.5],fn:"Butterfly, check and balancing valves and strainers.",spec:[["Type", "Flanged"]],bom:[["CPP-05-01", "Valve set", "B"]]},g=>{[-4.5,-2.5,-.5,1.5].forEach(x=>box(g,.3,.3,.3,'red',x,1.9,.6));});
+P({name:"Pipe supports & walkway",area:"CPP-06 · Pipe supports & walkway",ex:[0, 0, 0],fn:"Pipe supports, grating walkway and handrails.",spec:[["Material", "Steel / GI grating"]],bom:[["CPP-06-01", "Pipe supports", "M"], ["CPP-06-02", "Grating & handrail", "B"]]},g=>{for(let i=0;i<6;i++)box(g,.1,1.9,.1,'galv',-5+i*2,1.2,.2);box(g,11,.04,.8,'galv',0,.32,-.1);});
+P({name:"Control & VFD panel",area:"CPP-07 · Control & VFD panel",ex:[6.6, 0, 0],fn:"Starter / VFD panel and plant controller.",spec:[["Comms", "BMS integration"]],bom:[["CPP-07-01", "VFD / control panel", "B"]]},g=>{box(g,.8,2,.6,'steel',5.4,1.3,.9,{e:1});});
+})();
+(function(){
+const m=newModel("dfma",{title:"DfMA prefabricated MEP module",rating:"Prefabricated MEP corridor module (assumed definition)",size:"≈ 6 L × 2.4 W × 1.2 H m (assumed)",overview:"DfMA (design for manufacture and assembly) module, assumed here to be a prefabricated MEP rack: a steel frame pre-loaded with cable trays, pipes and supports, lifted into place on site. The client has not defined this product. Client quantity: 7,000 Nos per 1 GW (no year-wise split in client file). BOM codes DFM-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.6,0),dir:new THREE.Vector3(0.55,0.45,0.7),dist:10,site:'jin',tab:"DfMA module"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Steel frame",area:"DFM-01 · Steel frame",ex:[0, -0.6, 0],fn:"Welded or bolted steel frame.",spec:[["Material", "Steel hollow sections / channel"]],bom:[["DFM-01-01", "Module frame", "M"]]},g=>{[-3,3].forEach(x=>[-1.2,1.2].forEach(z=>box(g,.1,1.2,.1,'steelDark',x,1.6,z)));[1.0,2.2].forEach(y=>{box(g,6,.1,.1,'steelDark',0,y,-1.2);box(g,6,.1,.1,'steelDark',0,y,1.2);[-3,-1,1,3].forEach(x=>box(g,.1,.1,2.4,'steelDark',x,y,0));});});
+P({name:"Cable trays",area:"DFM-02 · Cable trays",ex:[0, 0.8, 0],fn:"Pre-installed cable trays (from the cable-tray line).",spec:[["Qty", "3 tiers × 6 m (assumed)"]],bom:[["DFM-02-01", "Cable tray", "B"]]},g=>{[1.9,2.05,2.15].forEach((y,i)=>box(g,6,.08,.6,'galv',0,y-.05,-.6+i*.0));box(g,6,.08,.6,'galv',0,2.1,.5);});
+P({name:"Pipes",area:"DFM-03 · Pipes",ex:[0, 0, 1.0],fn:"Chilled-water and SFN pipes on supports.",spec:[["Qty", "4 × 6 m (assumed)"]],bom:[["DFM-03-01", "Pipe spool, 6 m", "B"]]},g=>{[-.8,-.4,0,.4].forEach(z=>cyl(g,.1,6,'ss',0,1.25,z,'x'));});
+P({name:"Supports & hangers",area:"DFM-04 · Supports & hangers",ex:[0, 0, -1.0],fn:"C-strut supports and hangers inside the module.",spec:[["Material", "C-strut"]],bom:[["DFM-04-01", "C-strut support set", "B"]]},g=>{[-2,0,2].forEach(x=>{box(g,.04,.04,2.3,'galv',x,1.12,0);box(g,.04,.04,2.3,'galv',x,1.95,0);});});
+P({name:"Lifting & bracing",area:"DFM-05 · Lifting & bracing",ex:[0, 1.0, 0],fn:"Lifting lugs and transport bracing.",spec:[["Material", "Steel plate"]],bom:[["DFM-05-01", "Lifting lugs and bracing", "M"]]},g=>{[-3,3].forEach(x=>[-1.2,1.2].forEach(z=>box(g,.15,.12,.03,'red',x,2.3,z)));});
+})();
+(function(){
+const m=newModel("epod",{title:"PTU / EPOD prefabricated electrical module",rating:"Prefabricated e-house with switchboards, UPS and batteries (assumed contents)",size:"≈ 12 L × 3.5 W × 3.5 H m (assumed)",overview:"EPOD / PTU: a skid-mounted electrical room built in the factory with switchboards, UPS, batteries, cable trays, HVAC and fire detection. Client Plot-2: structural steel ≈ 12 t, electrical panels ≈ 8 t and cables & supports ≈ 3 t per EPOD. Client quantity: 750 Nos per 1 GW (no year-wise split in client file). BOM codes EPD-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.6,0),dir:new THREE.Vector3(0.55,0.45,0.7),dist:20,site:'jin',tab:"PTU / EPOD"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Base frame",area:"EPD-01 · Base frame",ex:[0, -1.0, 0],fn:"Structural base frame (client: ≈ 12 t steel incl. structure).",spec:[["Material", "Structural steel"]],bom:[["EPD-01-01", "Base frame and structure", "M"]]},g=>{box(g,12,.35,3.5,'steelDark',0,.175,0,{e:1});});
+P({name:"Wall panels",area:"EPD-02 · Wall panels",enclosure:true,ex:[0, 0, 2.2],fn:"Insulated wall panels.",spec:[["Type", "Sandwich panel, fire rated (assumed)"]],bom:[["EPD-02-01", "Wall panel", "M"]]},g=>{box(g,12,3,.08,'steel',0,1.85,-1.75,{e:1});box(g,.08,3,3.5,'steel',-6,1.85,0,{e:1});box(g,.08,3,3.5,'steel',6,1.85,0,{e:1});});
+P({name:"Roof",area:"EPD-03 · Roof",enclosure:true,ex:[0, 1.4, 0],fn:"Roof with lifting points.",spec:[["Material", "Steel, sloped"]],bom:[["EPD-03-01", "Roof panel", "M"]]},g=>{box(g,12.2,.1,3.7,'steel',0,3.4,0,{e:1});});
+P({name:"Doors",area:"EPD-04 · Doors",enclosure:true,ex:[0, 0, 3.0],fn:"Double doors and an emergency exit.",spec:[["Rating", "Fire rated (assumed)"]],bom:[["EPD-04-01", "Door set", "B"]]},g=>{[-4,0,4].forEach(x=>box(g,1.6,2.4,.06,'steel',x,1.6,1.79,{e:1}));});
+P({name:"Switchboards",area:"EPD-05 · Switchboards",ex:[0, 0, 1.2],fn:"LV switchboard lineup (from Box-3) inside the EPOD (client: ≈ 8 t of panels).",spec:[["Source", "Box-3 LV line (assumed)"]],bom:[["EPD-05-01", "LV switchboard sections", "B"]]},g=>{for(let i=0;i<8;i++)box(g,.95,2.2,1.0,'steel',-4.4+i*1.0,1.45,-1.1,{e:1});});
+P({name:"UPS & batteries",area:"EPD-06 · UPS & batteries",ex:[0, 0, -1.2],fn:"UPS cabinets and battery racks (assumed).",spec:[["Type", "Modular UPS + Li-ion racks (assumed)"]],bom:[["EPD-06-01", "UPS cabinet", "B"], ["EPD-06-02", "Battery rack", "B"]]},g=>{[3.2,4.1].forEach(x=>box(g,.8,2,.9,'fascia',x,1.35,1.0,{e:1}));[-5,-4.2,-3.4,-2.6].forEach(x=>box(g,.6,2,.8,'black',x,1.35,1.0));});
+P({name:"Cable trays & HVAC",area:"EPD-07 · Cable trays & HVAC",ex:[0, 1.0, 0],fn:"Overhead cable trays, HVAC units and fire detection (client: cables & supports ≈ 3 t).",spec:[["HVAC", "2 × packaged units (assumed)"]],bom:[["EPD-07-01", "Cables and supports", "B"], ["EPD-07-02", "HVAC unit", "B"], ["EPD-07-03", "Fire detection & suppression set", "B"]]},g=>{box(g,11,.08,.6,'galv',0,2.9,-.4);box(g,11,.08,.6,'galv',0,2.9,.4);[-5.2,5.2].forEach(x=>box(g,1,.8,.6,'white',x,2.7,1.3));});
+})();
+(function(){
+const m=newModel("igt",{title:"IG track (18 m)",rating:"Overhead support track, ≈ 5 kg/m (client Plot-2); purpose assumed",size:"18 m long · ≈ 0.6 W × 0.15 H m (assumed)",overview:"IG track, assumed to be an overhead support track for cable trays, busduct and lighting in the data hall. Client Plot-2: fabricated profiles, cross members, connectors, clamps and supports, about 5 kg per metre. Client quantity: 1,200 Nos per 1 GW (no year-wise split in client file). BOM codes IGT-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,2.6,0),dir:new THREE.Vector3(0.45,0.4,0.8),dist:18,site:'jin',tab:"IG track"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Track profiles",area:"IGT-01 · Track profiles",ex:[0, 0, 0.6],fn:"Two longitudinal profiles in 6 m lengths.",spec:[["Material", "GI 2.0 mm, roll-formed / punched"]],bom:[["IGT-01-01", "Track profile, 6 m", "M"]]},g=>{[-.3,.3].forEach(z=>box(g,18,.12,.05,'galv',0,3,z,{e:1}));});
+P({name:"Cross members",area:"IGT-02 · Cross members",ex:[0, 0.4, 0],fn:"Cross members every 1.2 m.",spec:[["Material", "GI 2.0 mm"]],bom:[["IGT-02-01", "Cross member", "M"]]},g=>{for(let i=0;i<16;i++)box(g,.04,.05,.6,'galv',-9+.6+i*1.2,2.95,0);});
+P({name:"Splice connectors",area:"IGT-03 · Splice connectors",ex:[0, -0.3, 0],fn:"Splice plates joining the 6 m lengths.",spec:[["Material", "GI 3.0 mm"]],bom:[["IGT-03-01", "Splice connector", "M"]]},g=>{[-3,3].forEach(x=>[-.3,.3].forEach(z=>box(g,.3,.14,.06,'steelDark',x,3,z)));});
+P({name:"Hangers & clamps",area:"IGT-04 · Hangers & clamps",ex:[0, 1.0, 0],fn:"Threaded-rod hangers and clamps to the slab.",spec:[["Spacing", "≈ 1.5 m (assumed)"]],bom:[["IGT-04-01", "Hanger rod M10 with clamp", "B"]]},g=>{for(let i=0;i<12;i++)[-.3,.3].forEach(z=>cyl(g,.006,1.2,'galv',-8.25+i*1.5,3.65,z,'y'));});
+P({name:"End caps",area:"IGT-05 · End caps",ex:[0, 0, 0],fn:"Caps at both ends.",spec:[["Material", "GI 1.6 mm"]],bom:[["IGT-05-01", "End cap", "M"]]},g=>{[-9,9].forEach(x=>box(g,.03,.16,.66,'steelDark',x,3,0));});
+})();
+(function(){
+const m=newModel("fdr",{title:"Fire door (double leaf)",rating:"2-hour fire rated, double leaf (assumed)",size:"≈ 1.8 W × 2.1 H m (assumed)",overview:"Steel fire door set: pressed-steel frame, two leaves with infill core, vision panels, hardware and intumescent seals. Client Plot-2: steel skin and frame, reinforcement, core and hardware. Client quantity: 7,000 Nos per 1 GW (no year-wise split in client file). BOM codes FDR-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.1,0),dir:new THREE.Vector3(0.45,0.25,0.85),dist:5,site:'jin',tab:"Fire door"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Door frame",area:"FDR-01 · Door frame",ex:[0, 0, -0.4],fn:"Pressed-steel frame with anchors.",spec:[["Material", "GI / CRCA 1.6 mm"]],bom:[["FDR-01-01", "Door frame (set)", "M"]]},g=>{box(g,.08,2.18,.15,'red',-.95,1.09,0,{e:1});box(g,.08,2.18,.15,'red',.95,1.09,0,{e:1});box(g,1.98,.08,.15,'red',0,2.14,0,{e:1});});
+P({name:"Door leaf skins",area:"FDR-02 · Door leaf skins",ex:[0, 0, 0.5],fn:"Front and back skins of the two leaves.",spec:[["Material", "GI 0.8–1.0 mm"]],bom:[["FDR-02-01", "Leaf skin", "M"], ["FDR-02-02", "Leaf edge reinforcement", "M"]]},g=>{[-.45,.45].forEach(x=>box(g,.88,2.06,.05,'red',x,1.05,.02,{e:1}));});
+P({name:"Infill core",area:"FDR-03 · Infill core",ex:[0, 0, 1.0],fn:"Fire-resisting infill between the skins.",spec:[["Type", "Mineral wool / honeycomb (assumed)"]],bom:[["FDR-03-01", "Core infill", "B"]]},g=>{[-.45,.45].forEach(x=>box(g,.8,1.95,.03,'yellow',x,1.05,.08));});
+P({name:"Vision panels",area:"FDR-04 · Vision panels",ex:[0, 0.4, 0.8],fn:"Fire-rated glass vision panels.",spec:[["Glass", "Fire-rated, 60–120 min"]],bom:[["FDR-04-01", "Fire-rated glass panel", "B"]]},g=>{[-.45,.45].forEach(x=>box(g,.3,.4,.06,'glass',x,1.5,.06));});
+P({name:"Hardware",area:"FDR-05 · Hardware",ex:[0.6, 0, 0.6],fn:"Hinges, panic bar, lock and door closer.",spec:[["Rating", "Fire-tested hardware"]],bom:[["FDR-05-01", "Hinges", "B"], ["FDR-05-02", "Panic bar and lock", "B"], ["FDR-05-03", "Door closer", "B"]]},g=>{[-.45,.45].forEach(x=>box(g,.7,.04,.06,'galv',x,1.0,.1));box(g,.4,.06,.08,'galv',-.45,2.0,.1);box(g,.4,.06,.08,'galv',.45,2.0,.1);});
+P({name:"Intumescent seals & paint",area:"FDR-06 · Intumescent seals & paint",ex:[0, -0.4, 0],fn:"Seals around the leaves and finish paint.",spec:[["Paint", "Powder coat"]],bom:[["FDR-06-01", "Intumescent seal", "B"], ["FDR-06-02", "Powder coat", "C"]]},g=>{box(g,1.8,.02,.06,'black',0,.02,0);});
+})();
+(function(){
+const m=newModel("frp",{title:"Fire-rated partition",rating:"2-hour drywall partition (assumed)",size:"Shown as 3 m × 3 m panel; BOM per m²",overview:"Fire-rated drywall partition: steel tracks and studs, two layers of fire board each side and mineral wool in the cavity. Client quantity: 275,000 Sqmtr per 1 GW (no year-wise split in client file). BOM codes FRP-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.5,0),dir:new THREE.Vector3(0.5,0.3,0.8),dist:7,site:'jin',tab:"Fire partition"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Steel tracks",area:"FRP-01 · Steel tracks",ex:[0, 0, -0.4],fn:"Floor and ceiling tracks.",spec:[["Material", "GI 0.55 mm, roll-formed"]],bom:[["FRP-01-01", "Track", "M"]]},g=>{box(g,3,.05,.075,'galv',0,.025,0);box(g,3,.05,.075,'galv',0,2.975,0);});
+P({name:"Studs",area:"FRP-02 · Studs",ex:[0, 0, -0.8],fn:"Vertical studs at 600 mm centres.",spec:[["Material", "GI 0.55 mm"]],bom:[["FRP-02-01", "Stud", "M"]]},g=>{for(let i=0;i<6;i++)box(g,.05,2.9,.075,'galv',-1.5+.3+i*.6,1.5,0);});
+P({name:"Mineral wool",area:"FRP-03 · Mineral wool",ex:[0, 0, 0],fn:"Cavity insulation.",spec:[["Density", "≥ 48 kg/m³ (assumed)"]],bom:[["FRP-03-01", "Mineral wool slab", "B"]]},g=>{box(g,2.9,2.9,.05,'yellow',0,1.5,0);});
+P({name:"Fire boards",area:"FRP-04 · Fire boards",ex:[0, 0, 0.8],fn:"Two layers of fire-rated board each side.",spec:[["Board", "12.5 mm fire board, 2 + 2"]],bom:[["FRP-04-01", "Fire board 12.5 mm", "B"]]},g=>{[-.06,-.05,.05,.06].forEach(z=>box(g,3,3,.0125,'white',0,1.5,z));});
+P({name:"Screws, tape & sealant",area:"FRP-05 · Screws, tape & sealant",ex:[0, -0.4, 0],fn:"Fixings, joint tape and compound, fire sealant at edges.",spec:[["Sealant", "Intumescent acrylic"]],bom:[["FRP-05-01", "Screws", "C"], ["FRP-05-02", "Joint tape & compound", "C"], ["FRP-05-03", "Fire sealant", "C"]]},g=>{box(g,3,.02,.14,'red',0,3.01,0);});
+})();
+(function(){
+const m=newModel("cst",{title:"C-strut support (trapeze)",rating:"41 × 41 mm GI channel system (assumed)",size:"Shown as one trapeze hanger; BOM per tonne",overview:"C-strut (unistrut) support system: GI channel roll-formed from coil, brackets, channel nuts, threaded rods and beam clamps. Client Plot-2: GI/CRCA strip or coil, 300 t output per month. Client quantity: Year-5 1,208 MT (1 GW: 3,450). BOM codes CST-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.6,0),dir:new THREE.Vector3(0.55,0.35,0.75),dist:5,site:'jin',tab:"C-strut support"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Channel 41 × 41",area:"CST-01 · Channel 41 × 41",ex:[0, 0, 0.5],fn:"Roll-formed slotted channel.",spec:[["Material", "GI 2.5 mm"], ["Mass", "≈ 1.7 kg/m"]],bom:[["CST-01-01", "Channel 41 × 41 × 2.5", "M"]]},g=>{box(g,1.5,.041,.041,'galv',0,1.2,0,{e:1});box(g,1.5,.041,.041,'galv',0,.8,0,{e:1});});
+P({name:"Brackets & fittings",area:"CST-02 · Brackets & fittings",ex:[0, 0, -0.5],fn:"Angle brackets and plate fittings.",spec:[["Material", "GI 5 mm"]],bom:[["CST-02-01", "Bracket / fitting", "M"]]},g=>{[-.7,.7].forEach(x=>{box(g,.08,.08,.06,'steelDark',x,1.2,0);box(g,.08,.08,.06,'steelDark',x,.8,0);});});
+P({name:"Threaded rods",area:"CST-03 · Threaded rods",ex:[0, 0.6, 0],fn:"Hanger rods to the slab.",spec:[["Size", "M10 / M12"]],bom:[["CST-03-01", "Threaded rod M10, 3 m", "B"]]},g=>{[-.7,.7].forEach(x=>cyl(g,.006,1.6,'galv',x,1.6,0,'y'));});
+P({name:"Channel nuts, bolts & clamps",area:"CST-04 · Channel nuts, bolts & clamps",ex:[0, -0.5, 0],fn:"Spring channel nuts, bolts and beam clamps.",spec:[["Finish", "Zinc / HDG"]],bom:[["CST-04-01", "Channel nut with spring", "B"], ["CST-04-02", "Beam clamp", "B"], ["CST-04-03", "End cap", "B"]]},g=>{[-.7,.7].forEach(x=>box(g,.12,.06,.1,'black',x,2.4,0));});
+})();
+(function(){
+const m=newModel("ctr",{title:"Perforated & ladder cable tray",rating:"Perforated and ladder tray, GI, 300–1200 mm wide (assumed)",size:"Shown as 3 m perforated + ladder lengths; BOM per metre",overview:"Cable trays made from GI sheet / sections: perforated tray, ladder tray, covers, couplers and bends. Client Plot-2: 300 t of perforated and ladder tray plus 100 t of basket tray per month. Client quantity: Year-5 1,750 Rmt (1 GW: 5,000). BOM codes CTR-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.0,0),dir:new THREE.Vector3(0.55,0.4,0.75),dist:5.5,site:'jin',tab:"Cable tray"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Perforated tray",area:"CTR-01 · Perforated tray",ex:[0, 0, 0.6],fn:"Perforated tray roll-formed from GI coil.",spec:[["Material", "GI 1.6 mm"], ["Width", "300–600 mm"]],bom:[["CTR-01-01", "Perforated tray, per m", "M"]]},g=>{box(g,3,.01,.6,'galv',0,.8,.5,{e:1});box(g,3,.1,.01,'galv',0,.85,.8);box(g,3,.1,.01,'galv',0,.85,.2);for(let i=0;i<20;i++)box(g,.04,.002,.4,'fascia',-1.45+i*.15,.806,.5);});
+P({name:"Ladder tray",area:"CTR-02 · Ladder tray",ex:[0, 0, -0.6],fn:"Ladder tray with side rails and rungs.",spec:[["Material", "GI 2.0 mm"]],bom:[["CTR-02-01", "Ladder tray, per m", "M"]]},g=>{box(g,3,.1,.02,'galv',0,1.25,-.1);box(g,3,.1,.02,'galv',0,1.25,-1.1);for(let i=0;i<11;i++)box(g,.04,.02,1.0,'galv',-1.5+i*.3,1.21,-.6);});
+P({name:"Covers",area:"CTR-03 · Covers",ex:[0, 0.5, 0.6],fn:"Covers for perforated tray.",spec:[["Material", "GI 1.2 mm"]],bom:[["CTR-03-01", "Tray cover, per m", "M"]]},g=>{box(g,3,.01,.62,'galv',0,.92,.5);});
+P({name:"Couplers & bends",area:"CTR-04 · Couplers & bends",ex:[1.0, 0, 0],fn:"Coupler plates and bends.",spec:[["Material", "GI 2.0 mm"]],bom:[["CTR-04-01", "Coupler set", "M"], ["CTR-04-02", "Bend / tee (share)", "M"]]},g=>{box(g,.2,.1,.02,'steelDark',1.5,.85,.81);box(g,.2,.1,.02,'steelDark',1.5,.85,.19);});
+P({name:"Supports & fasteners",area:"CTR-05 · Supports & fasteners",ex:[0, -0.5, 0],fn:"C-strut supports and fasteners.",spec:[["Spacing", "1.5 m"]],bom:[["CTR-05-01", "C-strut support (share)", "B"], ["CTR-05-02", "Fasteners", "C"]]},g=>{[-1,1].forEach(x=>{box(g,.04,.04,1.4,'galv',x,.76,0);box(g,.04,.04,1.4,'galv',x,1.17,-.3);});});
+})();
+(function(){
+const m=newModel("sms",{title:"Seismic modular support",rating:"Strut frame with seismic bracing (assumed)",size:"Shown as one braced support; BOM per tonne",overview:"Seismic modular support: C-strut frames with diagonal seismic braces, brace fittings, rod stiffeners and anchors. Client Plot-2: 100 t per month. Client quantity: Year-5 350 MT (1 GW: 1,000). BOM codes SMS-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.5,0),dir:new THREE.Vector3(0.55,0.35,0.75),dist:6,site:'jin',tab:"Seismic support"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Strut frame",area:"SMS-01 · Strut frame",ex:[0, 0, 0.6],fn:"Channel frame.",spec:[["Material", "GI 2.5 mm double channel"]],bom:[["SMS-01-01", "Channel 41 × 82 (double)", "M"]]},g=>{[-.8,.8].forEach(x=>box(g,.041,2,.082,'galv',x,1.5,0,{e:1}));box(g,1.8,.082,.041,'galv',0,.9,0,{e:1});});
+P({name:"Seismic braces",area:"SMS-02 · Seismic braces",ex:[0, 0.5, -0.6],fn:"Diagonal braces to the slab.",spec:[["Material", "GI channel"]],bom:[["SMS-02-01", "Brace channel", "M"]]},g=>{[-.8,.8].forEach(x=>box(g,.04,1.7,.04,'steelDark',x,1.9,-.6,{rx:.6}));});
+P({name:"Brace fittings & hinges",area:"SMS-03 · Brace fittings & hinges",ex:[0, 0, 0],fn:"Hinged seismic fittings.",spec:[["Rating", "Seismic tested"]],bom:[["SMS-03-01", "Seismic brace fitting", "B"]]},g=>{[-.8,.8].forEach(x=>box(g,.1,.1,.1,'red',x,1.25,-.08));});
+P({name:"Anchors & rod stiffeners",area:"SMS-04 · Anchors & rod stiffeners",ex:[0, -0.5, 0],fn:"Anchors and rod stiffeners.",spec:[["Type", "Seismic-rated anchors"]],bom:[["SMS-04-01", "Anchor", "B"], ["SMS-04-02", "Rod stiffener", "B"]]},g=>{[-.8,.8].forEach(x=>cyl(g,.01,.12,'black',x,2.55,0,'y'));});
+})();
+(function(){
+const m=newModel("acc",{title:"Air-cooled chiller",rating:"≈ 500 TR screw / scroll, V-coil condenser (assumed)",size:"≈ 9 L × 2.3 W × 2.5 H m (assumed)",overview:"Air-cooled chiller: base frame, compressors, evaporator, V-shaped condenser coils with fans on top, and a control panel. Priority 2 in the client file. Client quantity: 500 Nos per 1 GW (no year-wise split in client file). BOM codes ACC-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.2,0),dir:new THREE.Vector3(0.55,0.45,0.7),dist:15,site:'jin',tab:"Air-cooled chiller"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Base frame & casing",area:"ACC-01 · Base frame & casing",enclosure:true,ex:[0, -0.6, 0],fn:"Base frame and side casing panels.",spec:[["Material", "Galvanised steel, powder coated"]],bom:[["ACC-01-01", "Base frame", "M"], ["ACC-01-02", "Casing panels", "M"]]},g=>{box(g,9,.2,2.3,'steelDark',0,.1,0,{e:1});box(g,9,.9,.02,'steel',0,.65,1.15);box(g,9,.9,.02,'steel',0,.65,-1.15);});
+P({name:"Compressors",area:"ACC-02 · Compressors",ex:[0, 0, 1.5],fn:"Screw or scroll compressors.",spec:[["Qty", "2 (assumed)"]],bom:[["ACC-02-01", "Compressor", "B"]]},g=>{[-3,-1.5].forEach(x=>cyl(g,.35,1.1,'blue',x,.6,0,'x'));});
+P({name:"Evaporator",area:"ACC-03 · Evaporator",ex:[0, 0, -1.5],fn:"Shell-and-tube or flooded evaporator.",spec:[["Type", "Shell and tube"]],bom:[["ACC-03-01", "Evaporator", "B"]]},g=>{cyl(g,.35,3,'steelDark',1.5,.6,0,'x');});
+P({name:"V-coil condenser",area:"ACC-04 · V-coil condenser",ex:[0, 0.6, 0],fn:"Condenser coils in V-arrangement.",spec:[["Type", "Cu/Al or microchannel"]],bom:[["ACC-04-01", "Condenser coil", "B"]]},g=>{for(let i=0;i<4;i++){box(g,2.1,1.3,.05,'copper',-3.2+i*2.15,1.75,.5,{rx:.45});box(g,2.1,1.3,.05,'copper',-3.2+i*2.15,1.75,-.5,{rx:-.45});}});
+P({name:"Condenser fans",area:"ACC-05 · Condenser fans",ex:[0, 1.2, 0],fn:"Axial EC fans on top.",spec:[["Qty", "8 (assumed)"]],bom:[["ACC-05-01", "Axial EC fan", "B"]]},g=>{for(let i=0;i<4;i++)cyl(g,.45,.2,'fascia',-3.2+i*2.15,2.5,0,'y');});
+P({name:"Control panel & refrigerant piping",area:"ACC-06 · Control panel & refrigerant piping",ex:[4.8, 0, 0],fn:"Controller, starters and refrigerant circuit.",spec:[["Refrigerant", "Per design"]],bom:[["ACC-06-01", "Control / starter panel", "B"], ["ACC-06-02", "Refrigerant piping set", "B"], ["ACC-06-03", "Refrigerant charge", "C"]]},g=>{box(g,.6,1.4,.8,'steel',4.2,.9,0,{e:1});});
+})();
+(function(){
+const m=newModel("gen",{title:"Diesel generator set",rating:"≈ 2.5–3 MVA, 415 V or 11 kV (assumed)",size:"≈ 12 L × 3 W × 3.5 H m containerised (assumed)",overview:"Containerised diesel generator: base frame with fuel tank, engine and alternator, radiator, acoustic canopy, AMF control panel, exhaust silencer and batteries. Priority 2 in the client file. Client quantity: 737 Nos per 1 GW (no year-wise split in client file). BOM codes GEN-xx match the Jinnaram BOM workbook. Jinnaram is outside Gemba's current scope; product definition, sizes and parts are assumptions.",scale:[1,1,1],target:new THREE.Vector3(0,1.5,0),dir:new THREE.Vector3(0.55,0.45,0.7),dist:20,site:'jin',tab:"Generator"});
+const P=(d,f)=>addPart(m,d,f);
+P({name:"Base frame & fuel tank",area:"GEN-01 · Base frame & fuel tank",ex:[0, -0.8, 0],fn:"Base frame with integral day tank.",spec:[["Material", "Steel plate"]],bom:[["GEN-01-01", "Base frame with fuel tank", "M"]]},g=>{box(g,11,.5,2.6,'steelDark',0,.25,0,{e:1});});
+P({name:"Engine",area:"GEN-02 · Engine",ex:[0, 0, 1.6],fn:"Diesel engine.",spec:[["Rating", "Per kVA (assumed 2.5–3 MVA)"]],bom:[["GEN-02-01", "Diesel engine", "B"]]},g=>{box(g,4,1.8,1.6,'green',-1.5,1.4,0,{e:1});});
+P({name:"Alternator",area:"GEN-03 · Alternator",ex:[0, 0, -1.6],fn:"Brushless alternator.",spec:[["Voltage", "415 V / 11 kV (assumed)"]],bom:[["GEN-03-01", "Alternator", "B"]]},g=>{cyl(g,.8,2.2,'blue',1.6,1.3,0,'x');});
+P({name:"Radiator",area:"GEN-04 · Radiator",ex:[-1.2, 0, 0],fn:"Engine-cooling radiator.",spec:[["Type", "Remote or engine-mounted"]],bom:[["GEN-04-01", "Radiator", "B"]]},g=>{box(g,.4,2.2,2.2,'black',-4.3,1.6,0,{e:1});});
+P({name:"Acoustic canopy",area:"GEN-05 · Acoustic canopy",enclosure:true,ex:[0, 3.6, 0],fn:"Containerised acoustic enclosure.",spec:[["Material", "CRCA 2.0 mm + acoustic foam"], ["Noise", "75 dB(A) at 1 m (assumed)"]],bom:[["GEN-05-01", "Canopy panels", "M"], ["GEN-05-02", "Acoustic insulation", "B"]]},g=>{box(g,12,3,3,'canopy',0,2.0,0,{e:1});});
+P({name:"Control panel, silencer & batteries",area:"GEN-06 · Control panel, silencer & batteries",ex:[1.2, 0.6, 0],fn:"AMF panel, exhaust silencer and starting batteries.",spec:[["Panel", "AMF / synchronising"]],bom:[["GEN-06-01", "AMF control panel", "B"], ["GEN-06-02", "Exhaust silencer", "B"], ["GEN-06-03", "Starting batteries", "B"]]},g=>{box(g,.8,1.6,.6,'steel',4.5,1.3,.8,{e:1});cyl(g,.35,2,'steelDark',1,3.8,0,'x');});
+})();
+[['mv','MV · 33 kV switchboard'],['lv','LV · 4000 A main board'],['pdu','PDU'],['rpp','RPP / PDC']].forEach(([k,t])=>{models[k].site='b34';models[k].tab=t;});
+/* ---------- scene ---------- */
+const stage=document.getElementById('stage'),canvas=document.getElementById('cv'),tip=document.getElementById('tip'),bl=document.getElementById('balloons');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setClearColor(0x000000,0);
+const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(38,1,.05,100);
+scene.add(new THREE.HemisphereLight(0xffffff,0x56606c,.95));
+const d1=new THREE.DirectionalLight(0xffffff,.85);d1.position.set(4,6,5);scene.add(d1);
+const d2=new THREE.DirectionalLight(0xffffff,.35);d2.position.set(-5,3,-4);scene.add(d2);
+const grid=new THREE.GridHelper(14,28,0x8892a0,0x8892a0);grid.material.transparent=true;grid.material.opacity=.22;grid.position.y=-1.05;scene.add(grid);
+const controls=new THREE.OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=1.2;controls.maxDistance=22;controls.autoRotateSpeed=.8;
+
+const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let cur=null,sel=null,hov=null,t=.65,tT=.65,xray=false,showB=true,isolate=false,cmode=false;
+const SHEET=new Set(['steel','steelDark','galv','alu']);const COL_M=0x3f9a5a,COL_B=0x4f7fc4;
+const ACC=0xf08c00;
+
+Object.values(models).forEach(m=>{scene.add(m.root);m.root.visible=false;if(m.scale)m.root.scale.fromArray(m.scale);
+ m.parts.forEach(p=>{const b=document.createElement('button');b.className='balloon';b.textContent=p.no;b.setAttribute('aria-label','Item '+p.no+': '+p.name);
+  b.addEventListener('click',e=>{e.stopPropagation();select(p);});b.addEventListener('pointerenter',()=>setHover(p));b.addEventListener('pointerleave',()=>setHover(null));
+  b.hidden=true;bl.appendChild(b);p.el=b;});});
+
+function placeParts(){if(!cur)return;cur.parts.forEach(p=>p.obj.position.copy(p.exv).multiplyScalar(t));}
+function applyVisuals(){if(!cur)return;cur.parts.forEach(p=>{
+ p.obj.visible=!(isolate&&sel&&p!==sel);const ghost=xray&&p.enclosure&&p!==sel;
+ p.mats.forEach(e=>{const op=e.line?(ghost?.2:e.base):(ghost?.08:e.base);const tr=op<.999;
+  if(e.m.transparent!==tr){e.m.transparent=tr;e.m.needsUpdate=true;}e.m.opacity=op;
+  if(!e.line){e.m.depthWrite=op>.5;const mk=p.cat==='M'||(p.cat==='MB'&&SHEET.has(e.m.userData.k));e.m.color.setHex(cmode?(mk?COL_M:COL_B):e.m.userData.baseCol);if(p===sel||p===hov){e.m.emissive.setHex(ACC);e.m.emissiveIntensity=p===sel?.5:.28;}else{e.m.emissive.setHex(e.m.userData.baseEm);e.m.emissiveIntensity=1;}}});
+ p.el.classList.toggle('sel',p===sel);});
+ document.querySelectorAll('.row').forEach(r=>r.classList.toggle('sel',sel&&+r.dataset.no===sel.no));}
+function setHover(p){if(p===hov)return;hov=p;applyVisuals();}
+
+function frame(){const m=cur;const asp=camera.aspect||1;const d=m.dist*Math.max(1,1.25/asp);
+ controls.target.copy(m.target);camera.position.copy(m.target).addScaledVector(m.dir.clone().normalize(),d);camera.updateProjectionMatrix();controls.update();}
+function setModel(k){if(!models[k])k='mv';if(cur)cur.root.visible=false;if(cur)cur.parts.forEach(p=>p.el.hidden=true);
+ cur=models[k];cur.root.visible=true;sel=null;hov=null;isolate=false;
+ renderTabs(cur.site);document.querySelectorAll('#prodSeg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.model===k?'true':'false'));document.querySelectorAll('#siteSeg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.site===cur.site?'true':'false'));
+ document.getElementById('hudTitle').textContent=cur.title;document.getElementById('hudRating').textContent=cur.rating;document.getElementById('hudSize').textContent=cur.size;
+ placeParts();applyVisuals();renderBOM();renderDetail();frame();
+ try{if(location.hash!=='#'+k)history.replaceState(null,'','#'+k);}catch(e){}}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const TAG={M:'Make',B:'Buy',MB:'Make + Buy'};
+function renderBOM(){const groups={};cur.parts.forEach(p=>{(groups[p.area]=groups[p.area]||[]).push(p);});
+ document.getElementById('bomCount').textContent=cur.parts.length+' parts · '+cur.parts.reduce((a,p)=>a+p.bom.length,0)+' BOM lines';
+ let h='';Object.keys(groups).forEach(a=>{h+='<div class="grp">'+esc(a)+'</div>';groups[a].forEach(p=>{h+='<button class="row" data-no="'+p.no+'"><span class="n">'+p.no+'</span><span>'+esc(p.name)+'</span><span class="tag t'+p.cat+'">'+TAG[p.cat]+'</span></button>';});});
+ const el=document.getElementById('bom');el.innerHTML=h;
+ el.querySelectorAll('.row').forEach(r=>{const p=cur.parts[+r.dataset.no-1];r.addEventListener('click',()=>select(p===sel?null:p));
+  r.addEventListener('pointerenter',()=>setHover(p));r.addEventListener('pointerleave',()=>setHover(null));});}
+function renderDetail(){const el=document.getElementById('detail');
+ if(!sel){el.innerHTML='<div class="eyebrow">Overview · '+cur.parts.length+' components</div><h2>'+esc(cur.title)+'</h2><p>'+esc(cur.overview)+'</p>'+
+  '<dl class="spec"><dt>Ratings</dt><dd>'+esc(cur.rating)+'</dd><dt>Typical size</dt><dd>'+esc(cur.size)+'</dd></dl>'+
+  '<div class="legend"><span><i style="background:var(--ph-r)"></i>R phase</span><span><i style="background:var(--ph-y)"></i>Y phase</span><span><i style="background:var(--ph-b)"></i>B phase</span>'+(cur.key==='lv'?'<span><i style="background:#222428"></i>Neutral</span>':'')+'</div>'+
+  '<p class="note">Click a part, a numbered balloon or a row below to see its function and typical rating. Ratings and sizes are assumptions from the BOM workbook and will be replaced once GA / SLD drawings arrive. Turn on Colour by Make / Buy to see what you fabricate versus purchase.</p>';return;}
+ const p=sel;let dl='';p.spec.forEach(s=>{dl+='<dt>'+esc(s[0])+'</dt><dd>'+esc(s[1])+'</dd>';});
+ let bl='';p.bom.forEach(b=>{const c=b[2]==='M'?'M':(b[2]==='C'?'C':'B');bl+='<li><code>'+esc(b[0])+'</code><span>'+esc(b[1])+'</span><span class="tag t'+c+'">'+({M:'Make',B:'Buy',C:'Consumable'})[c]+'</span></li>';});
+ el.innerHTML='<div class="eyebrow"><span class="no">'+p.no+'</span>'+esc(p.area)+'</div><h2>'+esc(p.name)+' <span class="tag t'+p.cat+'">'+TAG[p.cat]+'</span></h2><p>'+esc(p.fn)+'</p><dl class="spec">'+dl+'</dl>'+
+  '<div class="bl-h">BOM lines ('+p.bom.length+')</div><ul class="bl">'+bl+'</ul>'+
+  '<div class="acts"><button class="btn primary" id="bIso">'+(isolate?'Show all parts':'Show only this part')+'</button><button class="btn" id="bClr">Back to overview</button></div>';
+ document.getElementById('bIso').onclick=()=>{isolate=!isolate;applyVisuals();renderDetail();};
+ document.getElementById('bClr').onclick=()=>select(null);}
+function select(p){sel=p;if(!p)isolate=false;applyVisuals();renderDetail();
+ if(p){const r=document.querySelector('.row[data-no="'+p.no+'"]');if(r&&r.scrollIntoView&&window.innerWidth>880)r.scrollIntoView({block:'nearest'});}}
+
+/* ---------- picking ---------- */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+function pick(cx,cy){const r=canvas.getBoundingClientRect();ndc.set((cx-r.left)/r.width*2-1,-((cy-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
+ const hits=ray.intersectObjects(cur.root.children,true);for(const h of hits){const p=h.object.userData.part;if(!p||!p.obj.visible)continue;if(xray&&p.enclosure&&p!==sel)continue;return p;}return null;}
+let down=null;
+canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY};});
+canvas.addEventListener('pointerup',e=>{if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<6){select(pick(e.clientX,e.clientY));}down=null;});
+canvas.addEventListener('pointermove',e=>{if(e.buttons){tip.hidden=true;return;}const p=pick(e.clientX,e.clientY);setHover(p);
+ if(p){const r=stage.getBoundingClientRect();tip.textContent=p.no+' · '+p.name;tip.hidden=false;
+  let x=e.clientX-r.left+14,y=e.clientY-r.top+14;if(x+tip.offsetWidth>r.width-8)x=e.clientX-r.left-tip.offsetWidth-10;tip.style.transform='translate('+x+'px,'+y+'px)';}else tip.hidden=true;});
+canvas.addEventListener('pointerleave',()=>{tip.hidden=true;setHover(null);});
+
+/* ---------- controls ---------- */
+const sl=document.getElementById('explode'),out=document.getElementById('exOut');
+function setT(v,instant){tT=Math.max(0,Math.min(1,v));if(instant||reduce)t=tT;sl.value=Math.round(tT*100);out.textContent=Math.round(tT*100)+'%';}
+sl.addEventListener('input',()=>{setT(sl.value/100,true);placeParts();});
+document.getElementById('bAssemble').onclick=()=>setT(0);
+document.getElementById('bExplode').onclick=()=>setT(1);
+document.getElementById('bReset').onclick=()=>frame();
+function chip(id,get,set){const b=document.getElementById(id);b.onclick=()=>{set(!get());b.setAttribute('aria-pressed',get()?'true':'false');};}
+chip('cXray',()=>xray,v=>{xray=v;applyVisuals();});
+chip('cBalloons',()=>showB,v=>{showB=v;});
+chip('cRotate',()=>controls.autoRotate,v=>{controls.autoRotate=v;});
+chip('cMake',()=>cmode,v=>{cmode=v;document.getElementById('mkLegend').hidden=!v;applyVisuals();});
+let tabSite=null;
+function renderTabs(site){if(tabSite===site)return;tabSite=site;const box=document.getElementById('prodSeg');box.innerHTML='';
+ Object.values(models).filter(m=>m.site===site).forEach(m=>{const b=document.createElement('button');b.setAttribute('role','tab');b.dataset.model=m.key;b.textContent=m.tab;b.addEventListener('click',()=>setModel(m.key));box.appendChild(b);});}
+document.querySelectorAll('#siteSeg button').forEach(b=>b.addEventListener('click',()=>{if(cur&&cur.site===b.dataset.site)return;const f=Object.values(models).find(m=>m.site===b.dataset.site);if(f)setModel(f.key);}));
+window.addEventListener('hashchange',()=>{const k=location.hash.slice(1);if(models[k]&&cur&&cur.key!==k)setModel(k);});
+window.addEventListener('keydown',e=>{if(e.key==='Escape')select(null);});
+
+/* ---------- resize & loop ---------- */
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+if(window.ResizeObserver)new ResizeObserver(resize).observe(stage);else window.addEventListener('resize',resize);
+resize();
+setModel(models[location.hash.slice(1)]?location.hash.slice(1):'mv');
+setT(.65,true);placeParts();
+
+const v=new THREE.Vector3();
+function tick(){requestAnimationFrame(tick);
+ if(t!==tT){t+=(tT-t)*.12;if(Math.abs(tT-t)<.002)t=tT;placeParts();}
+ controls.update();renderer.render(scene,camera);
+ const w=stage.clientWidth,h=stage.clientHeight;
+ cur.parts.forEach(p=>{if(!showB||!p.obj.visible){p.el.hidden=true;return;}v.copy(p.center).addScaledVector(p.exv,t).applyMatrix4(cur.root.matrixWorld).project(camera);
+  if(v.z>1||v.x<-1.05||v.x>1.05||v.y<-1.05||v.y>1.05){p.el.hidden=true;return;}
+  p.el.hidden=false;p.el.style.transform='translate('+((v.x+1)/2*w-11).toFixed(1)+'px,'+((1-v.y)/2*h-11).toFixed(1)+'px)';});}
+tick();
+})();
+</script>
+
+</body></html>

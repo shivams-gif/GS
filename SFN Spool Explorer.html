@@ -1,0 +1,425 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SFN Spool Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: fabrication bench. 3D spool on the stage with mode + shape switches above, step/explode controls docked at the bottom; spec sheet and list on the right */
+:root{
+  --bg:#e6ebee; --surface:#fbfcfc; --surface-2:#eef2f4; --fg:#16212b; --muted:#566371; --line:#cfd7dd;
+  --accent:#0f7c8c; --accent-ink:#ffffff; --accent-soft:#dff1f3; --warn:#b5530a; --warn-soft:#fbeedd;
+  --stage-top:#f3f6f7; --stage-bot:#d3dbe0;
+  --f-disp:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f151a; --surface:#161d23; --surface-2:#1d252d; --fg:#e5ebef; --muted:#97a4b0; --line:#2a343d;
+  --accent:#4cc3cf; --accent-ink:#06262a; --accent-soft:#16313a; --warn:#f0a04b; --warn-soft:#2d2216;
+  --stage-top:#1a222a; --stage-bot:#0b0f13; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151a; --surface:#161d23; --surface-2:#1d252d; --fg:#e5ebef; --muted:#97a4b0; --line:#2a343d;
+  --accent:#4cc3cf; --accent-ink:#06262a; --accent-soft:#16313a; --warn:#f0a04b; --warn-soft:#2d2216;
+  --stage-top:#1a222a; --stage-bot:#0b0f13; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+button{font:inherit;color:inherit}
+.app{height:100%;display:flex;flex-direction:column;gap:12px;max-width:1640px;margin:0 auto}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.brand h1{font-family:var(--f-disp);font-weight:700;font-size:22px;margin:0;line-height:1.1;text-wrap:balance}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.switches{display:flex;flex-wrap:wrap;gap:8px}
+.seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:6px 11px;border-radius:6px;cursor:pointer;font-weight:500;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.work{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px}
+.stage{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:linear-gradient(var(--stage-top),var(--stage-bot));min-height:0;touch-action:none}
+.stage canvas{display:block;width:100%;height:100%;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.hud{position:absolute;left:12px;top:12px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:calc(100% - 24px)}
+.hud b{color:var(--fg);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+#balloons{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.balloon{position:absolute;left:0;top:0;min-width:22px;height:22px;padding:0 4px;border-radius:11px;background:var(--surface);color:var(--fg);border:1.5px solid var(--fg);font:600 10.5px/1 var(--f-mono);display:grid;place-items:center;cursor:pointer;pointer-events:auto;opacity:.92}
+.balloon.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tip{position:absolute;left:0;top:0;background:var(--fg);color:var(--bg);font-size:12px;font-weight:500;padding:4px 8px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:3}
+.gauge{position:absolute;right:12px;top:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:var(--f-mono);font-size:12px;display:flex;flex-direction:column;gap:2px}
+.gauge strong{font-size:20px;color:var(--warn);font-variant-numeric:tabular-nums}
+.controls{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px;box-shadow:0 4px 18px rgba(0,0,0,.08)}
+.ex{display:flex;align-items:center;gap:8px;flex:1 1 220px;min-width:0}
+.ex label{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ex input{flex:1;min-width:80px;accent-color:var(--accent)}
+.ex output{font-family:var(--f-mono);font-size:12px;width:38px;text-align:right;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--surface-2);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.steps{display:flex;gap:4px;flex-wrap:wrap;flex:1 1 300px}
+.steps button{width:30px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font:600 12px var(--f-mono)}
+.steps button[aria-current="step"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.steps button.done{border-color:var(--accent);color:var(--accent)}
+.seg button:focus-visible,.btn:focus-visible,.row:focus-visible,.steps button:focus-visible,.balloon:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.side{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.eyebrow .no{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:1px 7px;font-weight:600}
+.card h2{font-family:var(--f-disp);font-size:21px;font-weight:600;margin:6px 0 8px;line-height:1.15;text-wrap:balance}
+.card p{margin:0 0 12px;max-width:65ch}
+.spec{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr);border-top:1px solid var(--line);margin:0}
+.spec dt,.spec dd{margin:0;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;min-width:0}
+.spec dt{color:var(--muted);padding-right:10px}
+.spec dd{font-family:var(--f-mono);font-size:12.5px;overflow-wrap:anywhere}
+.chk{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.chk li{font-size:13px;padding-left:20px;position:relative}
+.chk li::before{content:"";position:absolute;left:2px;top:6px;width:9px;height:9px;border:1.5px solid var(--accent);border-radius:2px}
+.flag{margin-top:12px;background:var(--warn-soft);color:var(--fg);border-left:3px solid var(--warn);padding:8px 10px;font-size:12.5px;border-radius:4px}
+.tag{display:inline-block;font:600 10px/1 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;padding:3px 6px;border-radius:4px;white-space:nowrap}
+.tF{background:var(--accent-soft);color:var(--accent)}.tB{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}.tP{background:var(--warn-soft);color:var(--warn)}
+.list h3{font-family:var(--f-disp);font-size:16px;font-weight:600;margin:0 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.list h3 span{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);font-weight:400}
+.row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:6px;border-radius:6px;cursor:pointer;font-size:13.5px}
+.row:hover{background:var(--surface-2)}
+.row.sel{background:var(--accent-soft)}
+.row .n{font-family:var(--f-mono);font-size:11px;font-weight:600;border:1.5px solid var(--fg);border-radius:999px;height:20px;display:grid;place-items:center}
+.row.sel .n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.note{font-size:12px;color:var(--muted);margin:10px 0 0}
+@media (max-width:900px){html,body{height:auto}.app{height:auto}.work{grid-template-columns:minmax(0,1fr)}.stage{height:68vh;min-height:440px}.side{overflow:visible}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <h1>SFN Spool Explorer</h1>
+      <p>Secondary Fluid Network pipe spool: parts, fabrication steps and packing</p>
+    </div>
+    <div class="switches">
+      <div class="seg" aria-label="Mode">
+        <button id="mAsm" aria-pressed="true">Exploded assembly</button>
+        <button id="mStep" aria-pressed="false">Manufacturing steps</button>
+      </div>
+      <div class="seg" aria-label="Spool shape">
+        <button id="sS" aria-pressed="true">S-shape</button>
+        <button id="sC" aria-pressed="false">C-shape</button>
+      </div>
+    </div>
+  </header>
+  <main class="work">
+    <section class="stage" id="stage" aria-label="3D spool. Drag to rotate, scroll to zoom, right-drag to pan.">
+      <canvas id="cv"></canvas>
+      <div id="balloons"></div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="hud"><b id="hudT">DN150 stainless spool · S-shape</b><span id="hudS"></span><span>Drag to rotate · scroll to zoom · right-drag to pan</span></div>
+      <div class="gauge" id="gauge" hidden><span>Test pressure</span><strong id="gVal">0.0 bar</strong><span id="gTxt">Filling with water</span></div>
+      <div class="controls" id="ctlAsm">
+        <div class="ex"><label for="explode">Explode</label><input type="range" id="explode" min="0" max="100" value="60"><output id="exOut">60%</output></div>
+        <button class="btn" id="bAsm">Assemble</button><button class="btn primary" id="bExp">Explode</button><button class="btn" id="bView">Reset view</button>
+      </div>
+      <div class="controls" id="ctlStep" hidden>
+        <button class="btn" id="bPrev">Previous</button>
+        <div class="steps" id="stepBtns"></div>
+        <button class="btn primary" id="bNext">Next step</button>
+      </div>
+    </section>
+    <aside class="side">
+      <div class="card" id="detail"></div>
+      <div class="card list"><h3 id="listH">Spool parts <span id="listN"></span></h3><div id="list"></div></div>
+    </aside>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+/* ---------- assumptions (replace with spool drawings) ---------- */
+const P150={od:.1683,t:.0034}, P50={od:.0603,t:.00277}, R=.2286; // DN150 / DN50 Sch 10S, 1.5D long-radius elbow
+const LA=1.8,LB=.9,LC=1.8,LBR=.22,STOCK=6.0,KERF=.003;
+const F150={od:.2794,t:.0254,pcd:.2413,hole:.0224,n:8,hub:.1,hubL:.06}, F50={od:.1524,t:.019,pcd:.1207,hole:.019,n:4,hub:.078,hubL:.05};
+
+/* ---------- three setup ---------- */
+const stage=document.getElementById('stage'),canvas=document.getElementById('cv'),tip=document.getElementById('tip'),bl=document.getElementById('balloons');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setClearColor(0,0);
+const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(38,1,.02,100);
+scene.add(new THREE.HemisphereLight(0xffffff,0x4d5966,1.0));
+const d1=new THREE.DirectionalLight(0xffffff,.95);d1.position.set(3,6,4);scene.add(d1);
+const d2=new THREE.DirectionalLight(0xdfefff,.45);d2.position.set(-4,2,-3);scene.add(d2);
+const grid=new THREE.GridHelper(12,24,0x8792a0,0x8792a0);grid.material.transparent=true;grid.material.opacity=.2;scene.add(grid);
+const controls=new THREE.OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=.6;controls.maxDistance=20;controls.maxPolarAngle=Math.PI*.49;
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const M={
+ ss:()=>new THREE.MeshStandardMaterial({color:0xc8ced3,metalness:.55,roughness:.32,side:THREE.DoubleSide}),
+ ssEl:()=>new THREE.MeshStandardMaterial({color:0xbfc7cd,metalness:.55,roughness:.36,side:THREE.DoubleSide}),
+ fl:()=>new THREE.MeshStandardMaterial({color:0xaeb7be,metalness:.5,roughness:.4}),
+ weld:()=>new THREE.MeshStandardMaterial({color:0x8d6b3e,metalness:.4,roughness:.5}),
+ tack:()=>new THREE.MeshStandardMaterial({color:0x6b4a26,metalness:.3,roughness:.6}),
+ cap:()=>new THREE.MeshStandardMaterial({color:0x2160c4,roughness:.6}),
+ tagm:()=>new THREE.MeshStandardMaterial({color:0xdadfe3,metalness:.6,roughness:.3}),
+ wood:()=>new THREE.MeshStandardMaterial({color:0xb7895a,roughness:.85}),
+ strap:()=>new THREE.MeshStandardMaterial({color:0xe0a800,roughness:.7}),
+ blind:()=>new THREE.MeshStandardMaterial({color:0xc84b31,roughness:.5,metalness:.2}),
+ dark:()=>new THREE.MeshStandardMaterial({color:0x2a2f35,roughness:.5}),
+ water:()=>new THREE.MeshStandardMaterial({color:0x3aa0c8,transparent:true,opacity:.22,depthWrite:false,roughness:.1}),
+ off:()=>new THREE.MeshStandardMaterial({color:0xc75a4a,metalness:.4,roughness:.4,side:THREE.DoubleSide}),
+ hi:()=>new THREE.MeshStandardMaterial({color:0xf5c84c,emissive:0x6b4d00,roughness:.4})
+};
+const Y=new THREE.Vector3(0,1,0),Z=new THREE.Vector3(0,0,1);
+function qFrom(axis,dir){return new THREE.Quaternion().setFromUnitVectors(axis,dir.clone().normalize());}
+function cylMesh(len,r,mat,open){const g=new THREE.CylinderGeometry(r,r,len,40,1,!!open);return new THREE.Mesh(g,mat);}
+class Arc extends THREE.Curve{constructor(c,a,b){super();this.c=c;this.u=a.clone().sub(c);this.v=b.clone().sub(c);}
+ getPoint(t,o=new THREE.Vector3()){const k=t*Math.PI/2;return o.copy(this.c).addScaledVector(this.u,Math.cos(k)).addScaledVector(this.v,Math.sin(k));}}
+function flangeMesh(F,pipeOd,mat){const g=new THREE.Group();
+ const hub=new THREE.Mesh(new THREE.CylinderGeometry(pipeOd/2+.002,F.hub/2,F.hubL,40,1,true),mat);hub.position.y=F.hubL/2;g.add(hub);
+ const s=new THREE.Shape();s.absarc(0,0,F.od/2,0,Math.PI*2,false);
+ const bore=new THREE.Path();bore.absarc(0,0,pipeOd/2-.002,0,Math.PI*2,true);s.holes.push(bore);
+ for(let i=0;i<F.n;i++){const a=(i+.5)/F.n*Math.PI*2,h=new THREE.Path();h.absarc(Math.cos(a)*F.pcd/2,Math.sin(a)*F.pcd/2,F.hole/2,0,Math.PI*2,true);s.holes.push(h);}
+ const dg=new THREE.ExtrudeGeometry(s,{depth:F.t,bevelEnabled:false,curveSegments:24});dg.rotateX(-Math.PI/2);
+ const disc=new THREE.Mesh(dg,mat);disc.position.y=F.hubL;g.add(disc);
+ const rf=new THREE.Mesh(new THREE.CylinderGeometry(F.hub/2+.012,F.hub/2+.012,.002,40),mat);rf.position.y=F.hubL+F.t+.001;g.add(rf);
+ return g;}
+function ring(r,mat,tube){return new THREE.Mesh(new THREE.TorusGeometry(r,tube||.0065,10,48),mat);}
+
+/* ---------- build spool ---------- */
+let parts=[],extras={},center=new THREE.Vector3(),root=null,shape='S';
+function build(sh){
+ if(root){scene.remove(root);bl.innerHTML='';}
+ root=new THREE.Group();scene.add(root);parts=[];extras={};shape=sh;
+ const r1=P150.od/2,r2=P50.od/2;
+ // path
+ const d2=sh==='S'?new THREE.Vector3(1,0,0):new THREE.Vector3(-1,0,0);
+ const pA0=new THREE.Vector3(0,0,0),dA=new THREE.Vector3(1,0,0),pA1=pA0.clone().addScaledVector(dA,LA);
+ const dB=new THREE.Vector3(0,0,1),cE1=pA1.clone().addScaledVector(dB,R),pB0=cE1.clone().addScaledVector(dA,R),pB1=pB0.clone().addScaledVector(dB,LB);
+ const cE2=pB1.clone().addScaledVector(d2,R),pC0=cE2.clone().addScaledVector(dB,R),pC1=pC0.clone().addScaledVector(d2,LC);
+ const bb=new THREE.Box3().setFromPoints([pA0,pA1,pB0,pB1,pC0,pC1]);bb.getCenter(center);center.y=0;
+ const lift=new THREE.Vector3(-center.x,.95,-center.z);root.position.copy(lift);
+ const sp=(p)=>p.clone(); // local coords inside root
+ function add(def,obj,home){obj.position.copy(home.p);obj.quaternion.copy(home.q||new THREE.Quaternion());root.add(obj);
+  const p=Object.assign({obj,home:{p:home.p.clone(),q:(home.q||new THREE.Quaternion()).clone()},kit:null,exv:new THREE.Vector3().fromArray(def.ex||[0,0,0])},def);
+  obj.traverse(o=>{if(o.isMesh)o.userData.part=p;});parts.push(p);return p;}
+ const mid=(a,b)=>a.clone().add(b).multiplyScalar(.5);
+ // pipes
+ const pa=add({id:'A',name:'Straight pipe A',cat:'F',ex:[-.55,0,-.35]},cylMesh(LA,r1,M.ss(),true),{p:mid(pA0,pA1),q:qFrom(Y,dA)});
+ const pb=add({id:'B',name:'Straight pipe B',cat:'F',ex:[sh==='S'?0:.55,.25,0]},cylMesh(LB,r1,M.ss(),true),{p:mid(pB0,pB1),q:qFrom(Y,dB)});
+ const cG=new THREE.Group();const cm=cylMesh(LC,r1,M.ss(),true);cG.add(cm);
+ const collar=cylMesh(.045,r2+.0015,M.ss(),true);collar.position.set(0,0,r1+.012);collar.rotation.x=Math.PI/2;cG.add(collar);
+ const pc=add({id:'C',name:'Straight pipe C with branch collar',cat:'F',ex:[.55,0,.35]},cG,{p:mid(pC0,pC1),q:qFrom(Y,d2)});
+ pc.collar=collar;
+ // collar faces +z in group local; rotate group so collar points up (+y world): spin around pipe axis
+ const spin=new THREE.Quaternion().setFromAxisAngle(Y,sh==='S'?-Math.PI/2:Math.PI/2);pc.home.q.multiply(spin);pc.obj.quaternion.copy(pc.home.q);
+ // elbows
+ function elbow(id,name,c,a,b,ex){const curve=new Arc(c,a.clone().sub(c),b.clone().sub(c));
+  const g=new THREE.TubeGeometry(new Arc(new THREE.Vector3(),a.clone().sub(c),b.clone().sub(c)),28,r1,40,false);
+  return add({id,name,cat:'B',ex},new THREE.Mesh(g,M.ssEl()),{p:c.clone()});}
+ const e1=elbow('E1','Elbow 90° LR #1',cE1,pA1,pB0,[.15,.45,-.55]);
+ const e2=elbow('E2','Elbow 90° LR #2',cE2,pB1,pC0,[sh==='S'?-.15:.6,.45,.55]);
+ // branch
+ const brBase=mid(pC0,pC1).add(new THREE.Vector3(0,r1+.035,0));
+ const pbr=add({id:'BR',name:'Branch pipe DN50',cat:'F',ex:[0,.55,0]},cylMesh(LBR,r2,M.ss(),true),{p:brBase.clone().add(new THREE.Vector3(0,LBR/2,0))});
+ // flanges
+ const f1=add({id:'F1',name:'Weld-neck flange DN150 (inlet)',cat:'B',ex:[-.6,0,0]},flangeMesh(F150,P150.od,M.fl()),{p:pA0.clone(),q:qFrom(Y,dA.clone().negate())});
+ const f2=add({id:'F2',name:'Weld-neck flange DN150 (outlet)',cat:'B',ex:[d2.x*.6,0,0]},flangeMesh(F150,P150.od,M.fl()),{p:pC1.clone(),q:qFrom(Y,d2)});
+ const f3=add({id:'F3',name:'Weld-neck flange DN50 (branch)',cat:'B',ex:[0,.9,0]},flangeMesh(F50,P50.od,M.fl()),{p:brBase.clone().add(new THREE.Vector3(0,LBR,0)),q:new THREE.Quaternion()});
+ // welds (rings) and tacks
+ const joints=[[pA0,dA,r1],[pA1,dA,r1],[pB0,dB,r1],[pB1,dB,r1],[pC0,d2,r1],[pC1,d2,r1],[brBase,Y,r2],[brBase.clone().add(new THREE.Vector3(0,LBR,0)),Y,r2]];
+ const wG=new THREE.Group(),tG=new THREE.Group();const wm=M.weld(),tm=M.tack();
+ joints.forEach(([p,dir,r])=>{const w=ring(r+.0015,wm,r>.05?.0065:.0045);w.position.copy(p);w.quaternion.copy(qFrom(Z,dir));wG.add(w);
+  const q=qFrom(Z,dir);for(let i=0;i<4;i++){const a=i*Math.PI/2+.4;const s=new THREE.Mesh(new THREE.SphereGeometry(r>.05?.011:.008,10,8),tm);
+   s.position.copy(new THREE.Vector3(Math.cos(a)*(r+.002),Math.sin(a)*(r+.002),0).applyQuaternion(q).add(p));tG.add(s);}});
+ const pw=add({id:'W',name:'Butt welds (8 joints, orbital TIG)',cat:'F',ex:[0,.35,0]},wG,{p:new THREE.Vector3()});pw.wm=wm;
+ extras.tacks=tG;root.add(tG);
+ // caps
+ const capG=new THREE.Group();const cmat=M.cap();
+ [[pA0,dA.clone().negate(),F150],[pC1,d2,F150],[brBase.clone().add(new THREE.Vector3(0,LBR,0)),Y,F50]].forEach(([p,dir,F])=>{
+  const c=new THREE.Mesh(new THREE.CylinderGeometry(F.od/2+.006,F.od/2+.006,.03,40),cmat);c.position.copy(p).addScaledVector(dir,F.hubL+F.t+.016);c.quaternion.copy(qFrom(Y,dir));capG.add(c);});
+ add({id:'CAP',name:'Flange covers & end caps',cat:'P',ex:[0,0,0]},capG,{p:new THREE.Vector3()});
+ // tag
+ const tagG=new THREE.Group();const tg=new THREE.Mesh(new THREE.BoxGeometry(.09,.05,.003),M.tagm());tg.position.set(0,-.055,0);tagG.add(tg);
+ const wire=new THREE.Mesh(new THREE.TorusGeometry(.03,.0015,6,24),M.dark());wire.rotation.y=Math.PI/2;tagG.add(wire);
+ add({id:'TAG',name:'Spool ID tag',cat:'P',ex:[0,.35,.2]},tagG,{p:pA0.clone().addScaledVector(dA,.35).add(new THREE.Vector3(0,-r1-.01,r1*.6))});
+ // wooden frame
+ const fr=new THREE.Group();const wd=M.wood(),stp=M.strap();
+ const all=new THREE.Box3().setFromPoints([pA0,pA1,pB0,pB1,pC0,pC1]).expandByScalar(.3);
+ const fx0=all.min.x,fx1=all.max.x,fz0=all.min.z,fz1=all.max.z,base=-.95;
+ [fz0+.05,fz1-.05].forEach(z=>{const b=new THREE.Mesh(new THREE.BoxGeometry(fx1-fx0,.1,.1),wd);b.position.set((fx0+fx1)/2,base+.05,z);fr.add(b);});
+ const cross=[];for(let x=fx0+.1;x<=fx1-.05;x+=.7)cross.push(x);
+ cross.forEach(x=>{const b=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,fz1-fz0),wd);b.position.set(x,base+.15,(fz0+fz1)/2);fr.add(b);});
+ // saddles under each straight
+ function saddle(p,dir){const n=new THREE.Vector3(-dir.z,0,dir.x);const s=new THREE.Mesh(new THREE.BoxGeometry(.1,.95-r1-.2,.3),wd);
+  s.position.set(p.x,base+.2+(.95-r1-.2)/2,p.z);s.quaternion.copy(qFrom(new THREE.Vector3(0,0,1),n));fr.add(s);
+  const st=new THREE.Mesh(new THREE.TorusGeometry(r1+.006,.006,6,40,Math.PI),stp);st.position.set(p.x,0,p.z);st.quaternion.copy(qFrom(Z,dir));fr.add(st);}
+ [[pA0.clone().lerp(pA1,.3),dA],[pA0.clone().lerp(pA1,.85),dA],[mid(pB0,pB1),dB],[pC0.clone().lerp(pC1,.25),d2],[pC0.clone().lerp(pC1,.8),d2]].forEach(a=>saddle(a[0],a[1]));
+ add({id:'FR',name:'Wooden transport frame & straps',cat:'P',ex:[0,-.7,0]},fr,{p:new THREE.Vector3()});
+ // ---------- process-only extras ----------
+ const stock=cylMesh(STOCK,r1,M.ss(),true);stock.quaternion.copy(qFrom(Y,new THREE.Vector3(1,0,0)));stock.position.set(center.x,0,center.z-.2);root.add(stock);extras.stock=stock;
+ const offL=STOCK-LA-LB-LC-3*KERF;extras.offL=offL;
+ const off=cylMesh(offL,r1,M.off(),true);root.add(off);extras.off=off;
+ // end-prep highlight rings on cut pieces
+ const hiG=new THREE.Group();root.add(hiG);extras.hi=hiG;
+ // wash tank
+ const tank=new THREE.Mesh(new THREE.BoxGeometry(fx1-fx0+.3,1.0,fz1-fz0+.3),M.water());tank.position.set((fx0+fx1)/2,0,(fz0+fz1)/2);root.add(tank);extras.tank=tank;
+ const tankE=new THREE.LineSegments(new THREE.EdgesGeometry(tank.geometry),new THREE.LineBasicMaterial({color:0x2c7fa3}));tank.add(tankE);
+ // pressure test kit
+ const test=new THREE.Group();const bm=M.blind();
+ [[pA0,dA.clone().negate(),F150],[pC1,d2,F150],[brBase.clone().add(new THREE.Vector3(0,LBR,0)),Y,F50]].forEach(([p,dir,F])=>{
+  const c=new THREE.Mesh(new THREE.CylinderGeometry(F.od/2,F.od/2,.03,40),bm);c.position.copy(p).addScaledVector(dir,F.hubL+F.t+.016);c.quaternion.copy(qFrom(Y,dir));test.add(c);});
+ const pump=new THREE.Mesh(new THREE.BoxGeometry(.45,.35,.3),bm);const pp=pA0.clone().addScaledVector(dA,-.75);pump.position.set(pp.x,-.77,pp.z+.4);test.add(pump);
+ const gaugeM=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.03,32),M.dark());gaugeM.rotation.x=Math.PI/2;gaugeM.position.set(pp.x,-.45,pp.z+.4);test.add(gaugeM);
+ const face=new THREE.Mesh(new THREE.CircleGeometry(.052,32),new THREE.MeshBasicMaterial({color:0xf4f4f0}));face.position.set(pp.x,-.45,pp.z+.4+.016);test.add(face);
+ const hosePts=[new THREE.Vector3(pp.x,-.6,pp.z+.4),new THREE.Vector3(pp.x+.2,-.6,pp.z+.1),new THREE.Vector3(pA0.x-.12,-.2,pA0.z),new THREE.Vector3(pA0.x-.09,0,pA0.z)];
+ test.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hosePts),40,.012,8,false),M.dark()));
+ root.add(test);extras.test=test;
+ // kit (bought items) positions for raw/cut stages
+ const kz=center.z+1.0;
+ e1.kit={p:new THREE.Vector3(center.x-1.1,-.75,kz),q:e1.home.q.clone()};
+ e2.kit={p:new THREE.Vector3(center.x-.5,-.75,kz),q:e2.home.q.clone()};
+ f1.kit={p:new THREE.Vector3(center.x+.2,-.93,kz),q:new THREE.Quaternion()};
+ f2.kit={p:new THREE.Vector3(center.x+.6,-.93,kz),q:new THREE.Quaternion()};
+ f3.kit={p:new THREE.Vector3(center.x+.95,-.93,kz),q:new THREE.Quaternion()};
+ // cut layout row (pieces laid along +x)
+ const row=[[pa,LA],[pb,LB],[pc,LC]];let x=center.x-3.0;const xq=qFrom(Y,new THREE.Vector3(1,0,0));
+ row.forEach(([p,L])=>{p.kit={p:new THREE.Vector3(x+L/2,-.2,center.z-.2),q:xq.clone()};x+=L+.12;});
+ pc.kit.q=xq.clone().multiply(new THREE.Quaternion().setFromAxisAngle(Y,-Math.PI/2));
+ extras.offPos=new THREE.Vector3(x+offL/2,-.2,center.z-.2);off.quaternion.copy(xq);off.position.copy(extras.offPos);
+ pbr.kit={p:new THREE.Vector3(x+offL+.5+LBR/2,-.2,center.z-.2),q:xq.clone()};row.push([pbr,LBR]);
+ // highlight rings at both ends of each cut piece (end prep)
+ row.forEach(([p,L])=>{[-1,1].forEach(sg=>{const r=ring((p===pbr?r2:r1)+.002,M.hi(),.005);r.position.copy(p.kit.p).add(new THREE.Vector3(sg*L/2,0,0));r.quaternion.copy(qFrom(Z,new THREE.Vector3(1,0,0)));hiG.add(r);});});
+ // balloons
+ parts.forEach((p,i)=>{p.no=i+1;const b=document.createElement('button');b.className='balloon';b.textContent=p.no;b.setAttribute('aria-label','Part '+p.no+': '+p.name);
+  b.addEventListener('click',e=>{e.stopPropagation();select(p);});b.hidden=true;bl.appendChild(b);p.el=b;
+  const bx=new THREE.Box3().setFromObject(p.obj);p.c=bx.getCenter(new THREE.Vector3()).sub(root.position);});
+ document.getElementById('hudT').textContent='DN150 stainless spool · '+(sh==='S'?'S-shape':'C-shape');
+ document.getElementById('hudS').textContent='DN150 from one 6 m pipe: A '+LA+' + B '+LB+' + C '+LC+' m · off-cut '+offL.toFixed(2)+' m · DN50 branch from its own pipe';
+}
+
+/* ---------- information ---------- */
+const PINFO={
+ A:{fn:'First straight, cut from the 6 m stock pipe. Ends squared and prepared for orbital butt welding.',spec:[['Material','ASTM A312 TP304L / 316L (assumed)'],['Size','DN150 Sch 10S · 168.3 × 3.4 mm'],['Cut length',LA+' m ± 1 mm'],['Made in','Laser cutting & welding area']]},
+ E1:{fn:'Bought-in butt-weld elbow that turns the run by 90°. Tack-welded to the straights on a fixture, then orbital welded.',spec:[['Standard','ASME B16.9, 90° long radius'],['Radius','1.5 D = 228.6 mm'],['Wall','Sch 10S to match pipe'],['Supply','Bought-in']]},
+ B:{fn:'Middle straight between the two elbows. Its length sets the offset of the S or C shape.',spec:[['Size','DN150 Sch 10S'],['Cut length',LB+' m ± 1 mm']]},
+ E2:{fn:'Second 90° elbow. In the S-shape it turns back to the original direction; in the C-shape it turns back on itself.',spec:[['Standard','ASME B16.9, 90° LR'],['Supply','Bought-in']]},
+ C:{fn:'Last straight with a branch collar pulled out of the pipe wall on the tee-drilling machine, so no separate tee fitting is needed.',spec:[['Size','DN150 Sch 10S'],['Cut length',LC+' m ± 1 mm'],['Collar','DN50, pulled on Comflex TLBK machine'],['Made in','Tee-drilling machines']]},
+ BR:{fn:'Short DN50 branch, butt-welded onto the pulled collar, for a rack or CDU take-off.',spec:[['Size','DN50 Sch 10S · 60.3 × 2.77 mm'],['Length',LBR+' m'],['Cut from','Separate 6 m DN50 pipe']]},
+ F1:{fn:'Weld-neck flange that bolts the spool to the next spool or equipment on site.',spec:[['Standard','ASME B16.5 Class 150 WN, RF (assumed)'],['Size','6 in · OD 279 mm · 8 × M20 bolts on PCD 241.3'],['Welding','Flange welding machine'],['Supply','Bought-in']]},
+ F2:{fn:'Outlet weld-neck flange, same as the inlet. Bolt holes straddle the centreline so spools line up on site.',spec:[['Standard','ASME B16.5 Class 150 WN, RF (assumed)'],['Size','6 in'],['Supply','Bought-in']]},
+ F3:{fn:'Small weld-neck flange on the branch.',spec:[['Standard','ASME B16.5 Class 150 WN, RF'],['Size','2 in · OD 152 mm · 4 bolts'],['Supply','Bought-in']]},
+ W:{fn:'Eight full-penetration butt welds made by orbital TIG with argon purge inside the pipe, so the inner bead stays clean and smooth for cooling fluid.',spec:[['Process','GTAW orbital, autogenous or with filler'],['Qualification','WPS / PQR / welder per ASME IX (assumed)'],['Inspection','Visual, borescope for inner bead, sample coupons'],['Made in','Orbital fixtures, flange welding machines']]},
+ CAP:{fn:'Covers on every flange face after cleaning and testing, to keep dirt and moisture out until installation.',spec:[['Type','Plastic flange protectors / sealed end caps'],['Option','Nitrogen purge before capping']]},
+ TAG:{fn:'Stainless tag that links the spool to its drawing, material heat numbers and test record.',spec:[['Content','Spool no., line no., heat no., test date'],['Fixing','SS wire, not taped to cleaned surface']]},
+ FR:{fn:'Wooden frame with saddles and straps that holds the S or C spool rigid during transport to the installation site.',spec:[['Timber','Heat-treated (ISPM 15 if exported)'],['Support','Saddles under each straight, straps over the pipe'],['Marking','Spool no., lifting points, centre of gravity']]}
+};
+const STEPS=[
+ {name:'Receive raw material',area:'Raw material & bought items store · raw material inspection room',what:'6 m stainless pipes, elbows and flanges arrive and are inspected before release to the shop.',chk:['Mill test certificates (EN 10204 3.1) match heat numbers','Material grade check (PMI) on a sample','Wall thickness and ovality spot-check','Bought-in fittings to standard and marking']},
+ {name:'Cut to length',area:'Laser cutting & welding area',what:'The 6 m DN150 pipe is cut into straights A, B and C; the rest is off-cut for shorter spools. The DN50 branch is cut from a separate DN50 pipe.',chk:['Cut length ± 1 mm and end squareness','Heat number transferred to every piece','Cut-plan yield recorded (off-cut length)'],cut:true},
+ {name:'End preparation & buffing',area:'Buffing area · deburring tables',what:'Cut ends are squared, burrs removed and the weld zone cleaned so the orbital welder gets a tight, clean butt joint.',chk:['No burrs inside or outside','Ends square for orbital welding','Weld zone clean, no oxide or oil']},
+ {name:'Tee drilling (branch collar)',area:'Comflex TLBK tee-drilling machines',what:'A collar is pulled out of pipe C for the DN50 branch, avoiding a separate tee fitting and two extra welds.',chk:['Collar position and height to drawing','Collar wall thickness not thinned below limit']},
+ {name:'Fit-up & tack welding',area:'Tacking tables · orbital fixtures',what:'Elbows, flanges and branch are aligned on fixtures and held with small tack welds while argon purges the inside.',chk:['Alignment and hi-lo within limit','Flange face square, bolt holes straddle centreline','Overall dimensions checked before full welding']},
+ {name:'Orbital & flange welding',area:'Orbital fixtures · flange welding machines',what:'All joints are welded full-penetration by orbital TIG with internal argon purge.',chk:['Qualified WPS, welder and machine program','Weld log per joint (welder, parameters)','Visual and borescope check of inner bead']},
+ {name:'Deburr & finish',area:'Deburring tables · buffing area',what:'Spatter and heat tint are removed and welds blended; inner edges are deburred so nothing comes loose in the coolant loop.',chk:['No spatter, sharp edges or loose particles','Weld appearance accepted']},
+ {name:'Water & chemical treatment',area:'Pre-cleaning 1/2 → Passivation 1/2 → Post-cleaning 1/2 (air-conditioned, air locks)',what:'Degrease and rinse, then pickle and passivate to restore the stainless surface, then rinse with DI water and dry in the clean room.',chk:['Bath concentration and temperature logged','Final rinse water conductivity','Cleanliness check (e.g. white-cloth wipe)','Spool fully dry before capping'],wash:true},
+ {name:'Pressure testing',area:'Not marked on the layout: needs a dedicated test bay',what:'Blind flanges are fitted and the spool is filled and pressurised, then held to prove there are no leaks.',chk:['Test pressure 1.5 × design (assumed), calibrated gauge','Hold time with no pressure drop or weep','Test record signed per spool','Drain and dry fully after the test'],test:true,flag:'The layout shows no pressure-test bay. Ask the client where hydro or pneumatic testing will be done and how test water is drained and dried before capping.'},
+ {name:'Cap, tag & pack',area:'Assembly area → FGS room → dispatch',what:'Flange covers go on, the spool is tagged and strapped into its wooden frame for transport to site.',chk:['All openings capped (optional N₂ purge)','Tag matches drawing and test record','Frame marked with spool no. and lifting points']}
+];
+
+/* ---------- state ---------- */
+let mode='asm',sel=null,step=0,t=.6,tT=.6,press=0;
+const v=new THREE.Vector3();
+function polish(on){parts.forEach(p=>{if(p.id==='W')p.wm.color.setHex(on?0xb9c1c7:0x8d6b3e);});}
+function poseFor(p){
+ if(mode==='asm')return{p:p.home.p.clone().addScaledVector(p.exv,t),q:p.home.q};
+ if(step<=3&&p.kit)return p.kit;return p.home;}
+function apply(){
+ const inStep=mode==='step';
+ parts.forEach(p=>{const ps=poseFor(p);p.obj.position.copy(ps.p);p.obj.quaternion.copy(ps.q);
+  let vis=true;
+  if(inStep){
+   if(['A','B','C','BR'].includes(p.id))vis=step>=1;
+   if(p.id==='W')vis=step>=5;
+   if(['CAP','TAG','FR'].includes(p.id))vis=step>=9;
+  }
+  p.obj.visible=vis;
+  if(p.id==='C')p.collar.visible=!inStep||step>=3;
+ });
+ extras.stock.visible=inStep&&step===0;
+ extras.off.visible=inStep&&step>=1&&step<=3;
+ extras.hi.visible=inStep&&step===2;
+ extras.tacks.visible=inStep&&step===4;
+ extras.tank.visible=inStep&&step===7;
+ extras.test.visible=inStep&&step===8;
+ polish(!inStep||step>=6);
+ document.getElementById('gauge').hidden=!(inStep&&step===8);
+ parts.forEach(p=>p.el.classList.toggle('sel',p===sel));
+}
+
+/* ---------- UI ---------- */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const TAGS={F:['Fabricated','tF'],B:['Bought-in','tB'],P:['Packing / protection','tP']};
+function renderList(){const el=document.getElementById('list');
+ if(mode==='asm'){document.getElementById('listH').firstChild.textContent='Spool parts ';document.getElementById('listN').textContent=parts.length+' items';
+  el.innerHTML=parts.map(p=>'<button class="row'+(p===sel?' sel':'')+'" data-i="'+p.no+'"><span class="n">'+p.no+'</span><span>'+esc(p.name)+'</span><span class="tag '+TAGS[p.cat][1]+'">'+TAGS[p.cat][0]+'</span></button>').join('');
+  el.querySelectorAll('.row').forEach(r=>r.onclick=()=>{const p=parts[+r.dataset.i-1];select(p===sel?null:p);});}
+ else{document.getElementById('listH').firstChild.textContent='Fabrication sequence ';document.getElementById('listN').textContent=STEPS.length+' steps';
+  el.innerHTML=STEPS.map((s,i)=>'<button class="row'+(i===step?' sel':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span><span>'+esc(s.name)+'</span><span></span></button>').join('');
+  el.querySelectorAll('.row').forEach(r=>r.onclick=()=>goStep(+r.dataset.i));}}
+function renderDetail(){const el=document.getElementById('detail');
+ if(mode==='step'){const s=STEPS[step];let extra='';
+  if(s.cut)extra='<dl class="spec"><dt>From 6 m DN150 pipe</dt><dd>A '+LA+' · B '+LB+' · C '+LC+' m</dd><dt>From 6 m DN50 pipe</dt><dd>Branch '+LBR+' m (about 26 per pipe)</dd><dt>Saw / laser kerf</dt><dd>3 × '+KERF*1000+' mm on DN150</dd><dt>Off-cut</dt><dd>'+extras.offL.toFixed(2)+' m (reuse on shorter spools)</dd></dl>';
+  el.innerHTML='<div class="eyebrow"><span class="no">'+(step+1)+' / '+STEPS.length+'</span>Manufacturing step</div><h2>'+esc(s.name)+'</h2><p>'+esc(s.what)+'</p>'+
+   '<dl class="spec"><dt>Where (GSCALE layout)</dt><dd>'+esc(s.area)+'</dd></dl>'+extra+
+   '<ul class="chk">'+s.chk.map(c=>'<li>'+esc(c)+'</li>').join('')+'</ul>'+(s.flag?'<div class="flag">'+esc(s.flag)+'</div>':'');return;}
+ if(!sel){el.innerHTML='<div class="eyebrow">Overview · '+parts.length+' parts</div><h2>'+(shape==='S'?'S-shape':'C-shape')+' SFN spool, DN150 stainless</h2>'+
+   '<p>A typical Secondary Fluid Network spool: straights cut from one 6 m pipe, two butt-weld elbows, a pulled branch collar, weld-neck flanges at the ends, then cleaned, pressure tested, capped and shipped in a wooden frame.</p>'+
+   '<dl class="spec"><dt>Main pipe</dt><dd>DN150 Sch 10S, 304L / 316L</dd><dt>Branch</dt><dd>DN50</dd><dt>Joints</dt><dd>8 orbital TIG butt welds</dd><dt>Stock</dt><dd>6 m pipe lengths</dd></dl>'+
+   '<p class="note">Sizes, material and flange class are assumptions until the client\'s spool drawings and specification arrive. Switch to Manufacturing steps to follow the spool through the shop.</p>';return;}
+ const p=sel,inf=PINFO[p.id];let dl='';inf.spec.forEach(s=>{dl+='<dt>'+esc(s[0])+'</dt><dd>'+esc(s[1])+'</dd>';});
+ el.innerHTML='<div class="eyebrow"><span class="no">'+p.no+'</span><span class="tag '+TAGS[p.cat][1]+'">'+TAGS[p.cat][0]+'</span></div><h2>'+esc(p.name)+'</h2><p>'+esc(inf.fn)+'</p><dl class="spec">'+dl+'</dl>'+
+  '<div style="margin-top:12px"><button class="btn" id="bClr">Back to overview</button></div>';
+ document.getElementById('bClr').onclick=()=>select(null);}
+function select(p){sel=p;applyHL();apply();renderList();renderDetail();}
+function applyHL(){parts.forEach(p=>p.obj.traverse(o=>{if(o.isMesh&&o.material.emissive){if(!o.userData.e0&&o.userData.e0!==0)o.userData.e0=o.material.emissive.getHex();o.material.emissive.setHex(p===sel?0x0c5a64:o.userData.e0);}}));}
+const sl=document.getElementById('explode'),out=document.getElementById('exOut');
+function setT(x,inst){tT=Math.max(0,Math.min(1,x));if(inst||reduce)t=tT;sl.value=Math.round(tT*100);out.textContent=Math.round(tT*100)+'%';}
+sl.oninput=()=>{setT(sl.value/100,true);apply();};
+document.getElementById('bAsm').onclick=()=>setT(0);document.getElementById('bExp').onclick=()=>setT(1);
+document.getElementById('bView').onclick=()=>frame();
+const stepBtns=document.getElementById('stepBtns');
+STEPS.forEach((s,i)=>{const b=document.createElement('button');b.textContent=i+1;b.title=s.name;b.setAttribute('aria-label','Step '+(i+1)+': '+s.name);b.onclick=()=>goStep(i);stepBtns.appendChild(b);});
+function goStep(i){step=Math.max(0,Math.min(STEPS.length-1,i));press=0;
+ stepBtns.querySelectorAll('button').forEach((b,j)=>{b.toggleAttribute('aria-current',j===step);if(j===step)b.setAttribute('aria-current','step');b.classList.toggle('done',j<step);});
+ document.getElementById('bPrev').disabled=step===0;document.getElementById('bNext').disabled=step===STEPS.length-1;
+ apply();renderList();renderDetail();}
+document.getElementById('bPrev').onclick=()=>goStep(step-1);document.getElementById('bNext').onclick=()=>goStep(step+1);
+function setMode(m){mode=m;sel=null;applyHL();
+ document.getElementById('mAsm').setAttribute('aria-pressed',m==='asm');document.getElementById('mStep').setAttribute('aria-pressed',m==='step');
+ document.getElementById('ctlAsm').hidden=m!=='asm';document.getElementById('ctlStep').hidden=m!=='step';
+ if(m==='step')goStep(step);else{apply();renderList();renderDetail();}}
+document.getElementById('mAsm').onclick=()=>setMode('asm');document.getElementById('mStep').onclick=()=>setMode('step');
+function setShape(s){build(s);document.getElementById('sS').setAttribute('aria-pressed',s==='S');document.getElementById('sC').setAttribute('aria-pressed',s==='C');sel=null;apply();renderList();renderDetail();}
+document.getElementById('sS').onclick=()=>setShape('S');document.getElementById('sC').onclick=()=>setShape('C');
+
+/* picking */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();let down=null;
+function pick(cx,cy){const r=canvas.getBoundingClientRect();ndc.set((cx-r.left)/r.width*2-1,-((cy-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
+ const hits=ray.intersectObjects(root.children,true);for(const h of hits){let o=h.object,vis=true;while(o){if(!o.visible){vis=false;break;}o=o.parent;}if(!vis)continue;const p=h.object.userData.part;if(p)return p;}return null;}
+canvas.addEventListener('pointerdown',e=>down={x:e.clientX,y:e.clientY});
+canvas.addEventListener('pointerup',e=>{if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<6&&mode==='asm')select(pick(e.clientX,e.clientY));down=null;});
+canvas.addEventListener('pointermove',e=>{if(e.buttons){tip.hidden=true;return;}const p=pick(e.clientX,e.clientY);if(!p){tip.hidden=true;return;}
+ const r=stage.getBoundingClientRect();tip.textContent=p.no+' · '+p.name;tip.hidden=false;let x=e.clientX-r.left+14,y=e.clientY-r.top+14;if(x+tip.offsetWidth>r.width-8)x-=tip.offsetWidth+28;tip.style.transform='translate('+x+'px,'+y+'px)';});
+canvas.addEventListener('pointerleave',()=>tip.hidden=true);
+
+function frame(){controls.target.set(0,.75,0);const asp=camera.aspect||1;const d=6.2*Math.max(1,1.3/asp);camera.position.set(d*.55,d*.48,d*.72);controls.update();}
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+if(window.ResizeObserver)new ResizeObserver(resize).observe(stage);else addEventListener('resize',resize);
+resize();build('S');frame();setT(.6,true);apply();renderList();renderDetail();
+const gVal=document.getElementById('gVal'),gTxt=document.getElementById('gTxt');
+function tick(now){requestAnimationFrame(tick);
+ if(mode==='asm'&&t!==tT){t+=(tT-t)*.12;if(Math.abs(tT-t)<.002)t=tT;apply();}
+ if(mode==='step'&&step===8){press=Math.min(1,press+(reduce?1:.004));const bar=15*Math.min(1,press*1.4);gVal.textContent=bar.toFixed(1)+' bar';gTxt.textContent=press<.7?'Pressurising (water)':'Holding · no drop';}
+ controls.update();renderer.render(scene,camera);
+ const w=stage.clientWidth,h=stage.clientHeight;
+ parts.forEach(p=>{if(mode!=='asm'||!p.obj.visible){p.el.hidden=true;return;}v.copy(p.c).addScaledVector(p.exv,t).add(root.position).project(camera);
+  if(v.z>1||Math.abs(v.x)>1.05||Math.abs(v.y)>1.05){p.el.hidden=true;return;}p.el.hidden=false;p.el.style.transform='translate('+((v.x+1)/2*w-11).toFixed(1)+'px,'+((1-v.y)/2*h-11).toFixed(1)+'px)';});}
+requestAnimationFrame(tick);
+})();
+</script>
+
+</body></html>
